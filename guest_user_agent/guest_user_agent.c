@@ -63,7 +63,7 @@ int accept_fuzzer_master(){
        abort();
 
     bzero((char *) &serv_addr, sizeof(serv_addr));
-    portno = atoi(8081);
+    portno = 8081;
 
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
