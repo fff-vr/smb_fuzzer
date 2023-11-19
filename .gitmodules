@@ -1,0 +1,3 @@
+[submodule "samba_for_fuzzing"]
+	path = samba_for_fuzzing
+	url = git@github.com:fff-vr/samba_for_fuzzing.git
