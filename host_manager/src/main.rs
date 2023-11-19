@@ -46,7 +46,7 @@ fn connect_and_write_to_server(addr: &str) -> io::Result<()> {
             println!("Client connected to {}", addr);
 
             loop {
-                let message = b"ABCD1234"; // 서버로 보낼 메시지
+                let message = b"\x04\x00\x00\x00ABCD"; // 서버로 보낼 메시지
 
                 match stream.write_all(message) {
                     Ok(_) => {
