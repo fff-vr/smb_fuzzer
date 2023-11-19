@@ -5,10 +5,9 @@ use std::io::{self, Read};
 use std::os::unix::io::AsRawFd;
 
 // Manually define the constants
-const KCOV_INIT_TRACE: u64 = 1;
-const KCOV_ENABLE: u64 = 100;
-const KCOV_DISABLE: u64 = 101;
-
+const KCOV_INIT_TRACE: u64 = 2148033281;
+const KCOV_ENABLE: u64 = 25444;
+const KCOV_DISABLE: u64 = 25445;
 fn main() -> io::Result<()> {
     // Open the kcov device
     let mut file = File::create("/sys/kernel/debug/kcov")?;
