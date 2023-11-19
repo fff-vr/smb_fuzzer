@@ -77,7 +77,7 @@ fn main() -> io::Result<()> {
     let ip_address = "127.0.0.1";
     let start_port = 10023;
 
-    for i in 0..12 {
+    for i in 0..0 {
         let port = start_port + i * 3;
         let addr = format!("{}:{}", ip_address, port);
 
@@ -88,7 +88,7 @@ fn main() -> io::Result<()> {
         });
     }
     let start_port = 10022;
-    for i in 0..12 {
+    for i in 0..0 {
         let port = start_port + i * 3;
         let addr = format!("{}:{}", ip_address, port);
 
