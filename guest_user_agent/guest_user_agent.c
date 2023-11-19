@@ -35,6 +35,7 @@ void mount_cifs(){
         //TODO if refuse -> retry
         return -1;
     }
+    umount("//127.0.0.1/data");
 }
 void start_coverage(int fd,unsigned long * cover){
  /* Mmap buffer shared between kernel- and user-space. */
@@ -51,7 +52,22 @@ void end_coverage(int fd, unsigned long * cover, int master){
     int n = __atomic_load_n(&cover[0], __ATOMIC_RELAXED);
     if (ioctl(fd, KCOV_DISABLE, 0))
             perror("ioctl"), exit(1);
-    write(master,cover,n*8 );
+    unsigned long *current_ptr = cover;
+    ssize_t total_written = 0;
+    ssize_t to_write = n * 8;
+    while (total_written < to_write) {
+        ssize_t written = write(master, current_ptr, to_write - total_written);
+
+        if (written == -1) {
+            perror("write");
+            // Decide how to handle the error. You might want to retry, or exit, etc.
+            // For now, let's just exit.
+            exit(1);
+        }
+
+        total_written += written;
+        current_ptr += written / sizeof(unsigned long);
+    }
     return;
 }
 int accept_fuzzer_master(){
@@ -99,9 +115,12 @@ int main(int argc, char **argv)
     cover = (unsigned long*)mmap(NULL, COVER_SIZE * sizeof(unsigned long),PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if ((void*)cover == MAP_FAILED)
             perror("mmap"), exit(1);
-    start_coverage(fd,cover);    
-    mount_cifs();
-    end_coverage(fd,cover,master);
+    for(int i =0 ; i<0x100;i++){
+
+        start_coverage(fd,cover);    
+        mount_cifs();
+        end_coverage(fd,cover,master);
+    }
        /* Free resources. */
     if (munmap(cover, COVER_SIZE * sizeof(unsigned long)))
             perror("munmap"), exit(1);
