@@ -10,6 +10,10 @@
 #include <fcntl.h>
 #include <linux/types.h>
 #include <sys/mount.h>
+#include <unistd.h>
+#include <sys/types.h> 
+#include <sys/socket.h>
+#include <netinet/in.h>
 #define KCOV_INIT_TRACE                     _IOR('c', 1, unsigned long)
 #define KCOV_ENABLE                 _IO('c', 100)
 #define KCOV_DISABLE                        _IO('c', 101)
@@ -42,27 +46,49 @@ void start_coverage(int fd,unsigned long * cover){
     /* Call the target syscall call. */
 }
 
-void end_coverage(int fd, unsigned long * cover){
+void end_coverage(int fd, unsigned long * cover, int master){
      /* Read number of PCs collected. */
     int n = __atomic_load_n(&cover[0], __ATOMIC_RELAXED);
-    for (int i = 0; i < n; i++)
-            printf("0x%lx\n", cover[i + 1]);
-    /* Disable coverage collection for the current thread. After this call
-     * coverage can be enabled for a different thread.
-     */
     if (ioctl(fd, KCOV_DISABLE, 0))
             perror("ioctl"), exit(1);
+    write(master,cover,n*8 );
+    return;
+}
+int accept_fuzzer_master(){
+    int sockfd, newsockfd, portno;
+    socklen_t clilen;
+    struct sockaddr_in serv_addr, cli_addr;
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) 
+       abort();
 
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    portno = atoi(8081);
 
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = INADDR_ANY;
+    serv_addr.sin_port = htons(portno);
+
+    if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) 
+             error("ERROR on binding");
+
+    listen(sockfd, 5);
+    clilen = sizeof(cli_addr);
+
+    newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
+    if (newsockfd < 0) 
+          abort();
+    return newsockfd;
 }
 int main(int argc, char **argv)
 {
-    int fd;
+    int fd,master;
     unsigned long *cover, n, i;
 
     /* A single fd descriptor allows coverage collection on a single
      * thread.
      */
+    master = accept_fuzzer_master();
     fd = open("/sys/kernel/debug/kcov", O_RDWR);
     if (fd == -1)
             perror("open"), exit(1);
@@ -75,7 +101,7 @@ int main(int argc, char **argv)
             perror("mmap"), exit(1);
     start_coverage(fd,cover);    
     mount_cifs();
-    end_coverage(fd,cover);
+    end_coverage(fd,cover,master);
        /* Free resources. */
     if (munmap(cover, COVER_SIZE * sizeof(unsigned long)))
             perror("munmap"), exit(1);
