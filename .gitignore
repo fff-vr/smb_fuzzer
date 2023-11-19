@@ -1,2 +1,2 @@
-guest_user_agent/target
-guest_user_agent/Cargo.lock
+host_manager/target
+host_manager/Cargo.lock
