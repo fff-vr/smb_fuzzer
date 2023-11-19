@@ -20,7 +20,7 @@ fn connect_to_server(addr: &str) -> io::Result<()> {
                         }
 
                         // 읽은 데이터 처리 (예: 화면에 출력)
-                        println!("Received {} bytes from server", bytes_read);
+                        //println!("Received {} bytes from server", bytes_read);
                     }
                     Err(e) => {
                         eprintln!("Failed to read from server: {}", e);
@@ -30,7 +30,7 @@ fn connect_to_server(addr: &str) -> io::Result<()> {
             }
         }
         Err(e) => {
-            eprintln!("Failed to connect to server: {}. Retrying in 10 seconds...", e);
+            eprintln!("Failed to connect to agent: {}. Retrying in 10 seconds...", e);
             thread::sleep(Duration::from_secs(10));
             connect_to_server(addr); // 재시도
         }
@@ -63,7 +63,7 @@ fn connect_and_write_to_server(addr: &str) -> io::Result<()> {
             }
         }
         Err(e) => {
-            eprintln!("Failed to connect to server: {}. Retrying in 10 seconds...", e);
+            eprintln!("Failed to connect to smb: {}. Retrying in 10 seconds...", e);
             thread::sleep(Duration::from_secs(10));
             connect_and_write_to_server(addr); // 재시도
         }
@@ -77,7 +77,7 @@ fn main() -> io::Result<()> {
     let ip_address = "127.0.0.1";
     let start_port = 10023;
 
-    for i in 0..0 {
+    for i in 0..1 {
         let port = start_port + i * 3;
         let addr = format!("{}:{}", ip_address, port);
 
@@ -88,7 +88,7 @@ fn main() -> io::Result<()> {
         });
     }
     let start_port = 10022;
-    for i in 0..0 {
+    for i in 0..1 {
         let port = start_port + i * 3;
         let addr = format!("{}:{}", ip_address, port);
 
