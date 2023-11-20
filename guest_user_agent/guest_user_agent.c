@@ -118,7 +118,7 @@ int main(int argc, char **argv)
     while(1){
         start_coverage(fd,cover);
         int ret =0;
-        while(ret!=1){
+        while(ret != 1){
             ret = read(master,buffer,1);
             printf("try to recv command from master(%d). ret = %d\n",master,ret);
         }
