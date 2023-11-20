@@ -1,9 +1,9 @@
+use lazy_static::lazy_static;
 use std::io::{self, Read, Write};
 use std::net::TcpStream;
+use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
-use std::sync::Mutex;
-use lazy_static::lazy_static;
 lazy_static! {
     static ref GLOBAL_VEC: Mutex<Vec<u64>> = Mutex::new(Vec::new());
 }
@@ -17,12 +17,12 @@ fn read_from_socket(stream: &mut TcpStream) -> io::Result<Option<Vec<u8>>> {
             Ok(4096) => {
                 data.extend_from_slice(&buffer[..4096]);
                 //println!("[read_from_socket] bytes_read = {}",4096);
-            },
+            }
             Ok(bytes_read) => {
                 data.extend_from_slice(&buffer[..bytes_read]);
                 //println!("[read_from_socket] bytes_read = {}",bytes_read);
                 break;
-            }, 
+            }
             Err(e) => return Err(e),
         }
     }
@@ -34,133 +34,96 @@ fn read_from_socket(stream: &mut TcpStream) -> io::Result<Option<Vec<u8>>> {
     }
 }
 
-fn add_unique_elements_to_global(va: Vec<u64>) {
+fn add_unique_elements_to_global(va: Vec<u64>) -> bool {
     let mut global_vec = GLOBAL_VEC.lock().unwrap();
-
+    let mut is_new = false;
     for item in va {
         if !global_vec.contains(&item) {
-            println!("new cov {:#x}",item);
+            println!("new cov {:#x}", item);
             global_vec.push(item);
+            is_new = true;
         }
     }
-    println!("coverage = {}",global_vec.len());
+    //println!("coverage = {}",global_vec.len());
+    is_new
 }
 fn convert_to_u64_vec(data: Vec<u8>) -> Vec<u64> {
-    data.chunks(8).map(|chunk| {
-        let mut val: u64 = 0;
-        for &byte in chunk.iter().rev() { // 리틀 엔디안으로 처리
-            val = val << 8 | byte as u64;
+    data.chunks(8)
+        .map(|chunk| {
+            let mut val: u64 = 0;
+            for &byte in chunk.iter().rev() {
+                // 리틀 엔디안으로 처리
+                val = val << 8 | byte as u64;
+            }
+            val
+        })
+        .collect()
+}
+fn send_command_to_agent(agent_socket: &mut TcpStream) -> bool {
+    let start_execute = b"\x12";
+    match agent_socket.write_all(start_execute) {
+        Ok(_) => (),
+        Err(e) => {
+            eprintln!("Failed to send start execute: {}", e);
         }
-        val
-    }).collect()
+    }
+    true
 }
 
-
-
-
-fn connect_to_server(addr: &str) -> io::Result<()> {
-    match TcpStream::connect(addr) {
-        Ok(mut stream) => {
-            println!("Client connected to {}", addr);
-
-
-            loop {
-                let start_execute = b"\x12";
-                match stream.write_all(start_execute) {
-                    Ok(_) => (),
-                    Err(e) => {
-                        eprintln!("Failed to send start execute: {}", e);
-                    }
-                }
-
-                match read_from_socket(&mut stream) {
-                    Ok(Some(bytes_read)) => {
-                        let coverage_vector: Vec<u64> = convert_to_u64_vec(bytes_read);
-                        add_unique_elements_to_global(coverage_vector);
-                    }
-                    Ok(None)=>{
-
-                        eprintln!("Failed to read from server: zero cov");
-                        break;
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to read from server: {}", e);
-                        break;
-                    }
-                }
-            }
+fn recv_coverage_from_agent(agent_socket: &mut TcpStream) -> bool {
+    match read_from_socket(agent_socket) {
+        Ok(Some(bytes_read)) => {
+            let coverage_vector: Vec<u64> = convert_to_u64_vec(bytes_read);
+            add_unique_elements_to_global(coverage_vector)
+        }
+        Ok(None) => {
+            eprintln!("Failed to read from server: zero cov");
+            false
         }
         Err(e) => {
-            eprintln!(
-                "Failed to connect to agent: {}. Retrying in 10 seconds...",
-                e
-            );
-            thread::sleep(Duration::from_secs(10));
-            connect_to_server(addr); // 재시도
+            eprintln!("Failed to read from server: {}", e);
+            false
+        }
+    }
+}
+fn send_mutate_data(smb_socket: &mut TcpStream) -> io::Result<()> {
+    let message = b"\x04\x00\x00\x00ABCD";
+
+    match smb_socket.write_all(message) {
+        Ok(_) => {
+            println!("Message sent to server");
+        }
+        Err(e) => {
+            eprintln!("Failed to write to server");
         }
     }
 
     Ok(())
 }
 
-fn connect_and_write_to_server(addr: &str) -> io::Result<()> {
-    match TcpStream::connect(addr) {
-        Ok(mut stream) => {
-            println!("Client connected to {}", addr);
+fn connect_to_server() -> io::Result<()> {
+    let ip_address = "127.0.0.1";
+    let agent_port = 10023;
+    let smb_port = 10023;
 
-            loop {
-                let message = b"\x04\x00\x00\x00ABCD"; // 서버로 보낼 메시지
+    let agent_addr = format!("{}:{}", ip_address, agent_port);
+    let smb_addr = format!("{}:{}", ip_address, smb_port);
 
-                match stream.write_all(message) {
-                    Ok(_) => {
-                        println!("Message sent to server on {}", addr);
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to write to server: {}", e);
-                        break;
-                    }
-                }
-
-                // 일정 시간 대기 후 메시지 재전송 (예: 5초)
-                thread::sleep(Duration::from_secs(5));
-            }
-        }
-        Err(e) => {
-            eprintln!("Failed to connect to smb: {}. Retrying in 10 seconds...", e);
-            thread::sleep(Duration::from_secs(10));
-            connect_and_write_to_server(addr); // 재시도
-        }
-    }
+    let mut agent_socket = TcpStream::connect(agent_addr).unwrap();
+    let mut smb_socket = TcpStream::connect(smb_addr).unwrap();
+    send_command_to_agent(&mut agent_socket);
+    send_mutate_data(&mut smb_socket);
+    recv_coverage_from_agent(&mut agent_socket);
 
     Ok(())
 }
+
+
 
 fn main() -> io::Result<()> {
-    let ip_address = "127.0.0.1";
-    let start_port = 10023;
     //TODO create execute vm thread.  That thread is also responsible for analyze crash log.
 
-    for i in 0..1 {
-        let port = start_port + i * 3;
-        let addr = format!("{}:{}", ip_address, port);
-
-        thread::spawn(move || {
-            if let Err(e) = connect_to_server(&addr) {
-                eprintln!("An error occurred: {}", e);
-            }
-        });
-    }
-    let start_port = 10022;
-    for i in 0..1 {
-        let port = start_port + i * 3;
-        let addr = format!("{}:{}", ip_address, port);
-
-        thread::spawn(move || {
-            if let Err(e) = connect_and_write_to_server(&addr) {
-                eprintln!("An error occurred: {}", e);
-            }
-        });
-    }
+    connect_to_server();
 
     loop {
         thread::sleep(Duration::from_secs(60));
