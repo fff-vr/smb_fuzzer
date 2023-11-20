@@ -43,6 +43,7 @@ fn add_unique_elements_to_global(va: Vec<u64>) {
             global_vec.push(item);
         }
     }
+    println!("coverage = {}",global_vec.len());
 }
 fn convert_to_u64_vec(data: Vec<u8>) -> Vec<u64> {
     data.chunks(8).map(|chunk| {
