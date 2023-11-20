@@ -2,17 +2,27 @@ use std::io::{self, Read, Write};
 use std::net::TcpStream;
 use std::thread;
 use std::time::Duration;
+use std::sync::Mutex;
+use lazy_static::lazy_static;
+lazy_static! {
+    static ref GLOBAL_VEC: Mutex<Vec<u64>> = Mutex::new(Vec::new());
+}
+
 fn read_from_socket(stream: &mut TcpStream) -> io::Result<Option<Vec<u8>>> {
     let mut data = Vec::new();
     let mut buffer = [0; 4096];
 
     loop {
         match stream.read(&mut buffer) {
-            Ok(0) => break, // 연결이 종료되었거나 더 이상 읽을 데이터가 없음
+            Ok(4096) => {
+                data.extend_from_slice(&buffer[..4096]);
+                //println!("[read_from_socket] bytes_read = {}",4096);
+            },
             Ok(bytes_read) => {
-                data.extend_from_slice(&buffer[..bytes_read]),
-                println!("[read_from_socket] bytes_read = {}",bytes_read);
-            }
+                data.extend_from_slice(&buffer[..bytes_read]);
+                //println!("[read_from_socket] bytes_read = {}",bytes_read);
+                break;
+            }, 
             Err(e) => return Err(e),
         }
     }
@@ -23,6 +33,28 @@ fn read_from_socket(stream: &mut TcpStream) -> io::Result<Option<Vec<u8>>> {
         Ok(Some(data))
     }
 }
+
+fn add_unique_elements_to_global(va: Vec<u64>) {
+    let mut global_vec = GLOBAL_VEC.lock().unwrap();
+
+    for item in va {
+        if !global_vec.contains(&item) {
+            println!("new cov {:#x}",item);
+            global_vec.push(item);
+        }
+    }
+}
+fn convert_to_u64_vec(data: Vec<u8>) -> Vec<u64> {
+    data.chunks(8).map(|chunk| {
+        let mut val: u64 = 0;
+        for &byte in chunk.iter().rev() { // 리틀 엔디안으로 처리
+            val = val << 8 | byte as u64;
+        }
+        val
+    }).collect()
+}
+
+
 
 
 fn connect_to_server(addr: &str) -> io::Result<()> {
@@ -41,8 +73,14 @@ fn connect_to_server(addr: &str) -> io::Result<()> {
                 }
 
                 match read_from_socket(&mut stream) {
-                    Ok(bytes_read) => {
-                        println!("{:?}",bytes_read);
+                    Ok(Some(bytes_read)) => {
+                        let coverage_vector: Vec<u64> = convert_to_u64_vec(bytes_read);
+                        add_unique_elements_to_global(coverage_vector);
+                    }
+                    Ok(None)=>{
+
+                        eprintln!("Failed to read from server: zero cov");
+                        break;
                     }
                     Err(e) => {
                         eprintln!("Failed to read from server: {}", e);
