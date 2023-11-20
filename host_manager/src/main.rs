@@ -39,12 +39,10 @@ fn add_unique_elements_to_global(va: Vec<u64>) -> bool {
     let mut is_new = false;
     for item in va {
         if !global_vec.contains(&item) {
-            println!("new cov {:#x}", item);
             global_vec.push(item);
             is_new = true;
         }
     }
-    //println!("coverage = {}",global_vec.len());
     is_new
 }
 fn convert_to_u64_vec(data: Vec<u8>) -> Vec<u64> {
@@ -60,6 +58,7 @@ fn convert_to_u64_vec(data: Vec<u8>) -> Vec<u64> {
         .collect()
 }
 fn send_command_to_agent(agent_socket: &mut TcpStream) -> bool {
+    println!("[send_command_to_agent]");
     let start_execute = b"\x12";
     match agent_socket.write_all(start_execute) {
         Ok(_) => (),
@@ -71,6 +70,7 @@ fn send_command_to_agent(agent_socket: &mut TcpStream) -> bool {
 }
 
 fn recv_coverage_from_agent(agent_socket: &mut TcpStream) -> bool {
+    println!("[recv_coverage_from_agent]");
     match read_from_socket(agent_socket) {
         Ok(Some(bytes_read)) => {
             let coverage_vector: Vec<u64> = convert_to_u64_vec(bytes_read);
@@ -87,6 +87,7 @@ fn recv_coverage_from_agent(agent_socket: &mut TcpStream) -> bool {
     }
 }
 fn send_mutate_data(smb_socket: &mut TcpStream) -> io::Result<()> {
+    println!("[send_mutate_data]");
     let message = b"\x04\x00\x00\x00ABCD";
 
     match smb_socket.write_all(message) {
@@ -113,8 +114,9 @@ fn connect_to_server() -> io::Result<()> {
     let mut smb_socket = TcpStream::connect(smb_addr).unwrap();
     send_command_to_agent(&mut agent_socket);
     send_mutate_data(&mut smb_socket);
-    recv_coverage_from_agent(&mut agent_socket);
-
+    if recv_coverage_from_agent(&mut agent_socket){
+        println!("get new cov");
+    }
     Ok(())
 }
 
