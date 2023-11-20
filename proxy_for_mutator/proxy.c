@@ -12,6 +12,8 @@
 int client_socket_8082 = -1; // Socket for the client on port 8082
 pthread_mutex_t client_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+char buffer[BUFFER_SIZE];
+unsigned int buffer_size ; 
 void *handle_relay(void *arg);
 void *handle_client_8082(void *arg);
 int setup_server_socket(int port);
@@ -88,8 +90,6 @@ void *handle_relay(void *arg) {
         exit(EXIT_FAILURE);
     }
 
-    char buffer[BUFFER_SIZE];
-    unsigned int buffer_size ; 
     while (1) {
 
         ssize_t bytes_read = read(new_socket, &buffer_size, 4);
@@ -140,6 +140,7 @@ void *handle_client_8082(void *arg) {
 
 void send_to_client_8082(char *msg, int len) {
     if (client_socket_8082 != -1) {
+        send(client_socket_8082,&buffer_size,4,0)
         send(client_socket_8082, msg, len, 0);
     }
 }
