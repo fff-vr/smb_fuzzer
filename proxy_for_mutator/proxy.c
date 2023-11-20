@@ -80,6 +80,7 @@ int setup_server_socket(int port) {
 }
 
 void *handle_relay(void *arg) {
+    //8080
     int server_fd = (intptr_t)arg;
     int new_socket = accept(server_fd, NULL, NULL);
     if (new_socket < 0) {
@@ -88,8 +89,15 @@ void *handle_relay(void *arg) {
     }
 
     char buffer[BUFFER_SIZE];
+    unsigned int buffer_size ; 
     while (1) {
-        ssize_t bytes_read = read(new_socket, buffer, BUFFER_SIZE);
+
+        ssize_t bytes_read = read(new_socket, &buffer_size, 4);
+        if (bytes_read != 4 || buffer_size > 0x100000) {
+            perror("Read failed");
+            break;
+        }
+        bytes_read = read(new_socket, buffer, buffer_size);
         if (bytes_read <= 0) {
             perror("Read failed");
             break;
