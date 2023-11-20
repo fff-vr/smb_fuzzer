@@ -2,13 +2,31 @@ use std::io::{self, Read, Write};
 use std::net::TcpStream;
 use std::thread;
 use std::time::Duration;
+fn read_from_socket(stream: &mut TcpStream) -> io::Result<Option<Vec<u8>>> {
+    let mut data = Vec::new();
+    let mut buffer = [0; 4096];
+
+    loop {
+        match stream.read(&mut buffer) {
+            Ok(0) => break, // 연결이 종료되었거나 더 이상 읽을 데이터가 없음
+            Ok(bytes_read) => data.extend_from_slice(&buffer[..bytes_read]),
+            Err(e) => return Err(e),
+        }
+    }
+
+    if data.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(data))
+    }
+}
+
 
 fn connect_to_server(addr: &str) -> io::Result<()> {
     match TcpStream::connect(addr) {
         Ok(mut stream) => {
             println!("Client connected to {}", addr);
 
-            let mut buffer = vec![0; 8 * 0x10000]; // 버퍼 크기를 512KB로 설정
 
             loop {
                 let start_execute = b"\x12";
@@ -19,14 +37,9 @@ fn connect_to_server(addr: &str) -> io::Result<()> {
                     }
                 }
 
-                match stream.read(&mut buffer) {
+                match read_from_socket(&mut stream) {
                     Ok(bytes_read) => {
-                        if bytes_read == 0 {
-                            // 서버가 연결을 종료했을 경우
-                            println!("Server closed the connection");
-                            break;
-                        }
-                        //process coverage
+                        println!("{:?}",bytes_read);
                     }
                     Err(e) => {
                         eprintln!("Failed to read from server: {}", e);
