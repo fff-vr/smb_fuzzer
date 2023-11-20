@@ -115,9 +115,10 @@ int main(int argc, char **argv)
     cover = (unsigned long*)mmap(NULL, COVER_SIZE * sizeof(unsigned long),PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if ((void*)cover == MAP_FAILED)
             perror("mmap"), exit(1);
-    while(true){
+    while(1){
         start_coverage(fd,cover);
         if (read(fd,buffer,1) != 1) {
+            printf("fail to recv command from master\n");
             exit(1);
         }
         //more command for status? 
