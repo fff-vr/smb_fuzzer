@@ -120,7 +120,10 @@ int main(int argc, char **argv)
         int ret =0;
         while(ret != 1){
             ret = read(master,buffer,1);
-            printf("try to recv command from master(%d). ret = %d\n",master,ret);
+            if(ret!=1){
+                printf("wait for recv command from Master\n");
+                sleep(1);
+            }
         }
         //more command for status? 
         mount_cifs();
