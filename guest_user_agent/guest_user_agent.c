@@ -120,8 +120,9 @@ int main(int argc, char **argv)
         int ret =0;
         while(ret != 1){
             ret = read(master,buffer,1);
+            int retry =0;
             if(ret!=1){
-                printf("wait for recv command from Master\n");
+                printf("wait for recv command from Master. %d\n",retry++);
                 sleep(1);
             }
         }
