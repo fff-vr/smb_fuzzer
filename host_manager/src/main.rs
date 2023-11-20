@@ -112,10 +112,12 @@ fn connect_to_server() -> io::Result<()> {
 
     let mut agent_socket = TcpStream::connect(agent_addr).unwrap();
     let mut smb_socket = TcpStream::connect(smb_addr).unwrap();
-    send_command_to_agent(&mut agent_socket);
-    send_mutate_data(&mut smb_socket);
-    if recv_coverage_from_agent(&mut agent_socket){
-        println!("get new cov");
+    loop{
+        send_command_to_agent(&mut agent_socket);
+        send_mutate_data(&mut smb_socket);
+        if recv_coverage_from_agent(&mut agent_socket){
+            println!("get new cov");
+        }
     }
     Ok(())
 }
