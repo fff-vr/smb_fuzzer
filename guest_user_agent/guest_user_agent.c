@@ -117,9 +117,10 @@ int main(int argc, char **argv)
             perror("mmap"), exit(1);
     while(1){
         start_coverage(fd,cover);
-        if (read(fd,buffer,1) != 1) {
-            printf("fail to recv command from master\n");
-            exit(1);
+        int ret =0;
+        while(ret!=1){
+            ret = read(fd,buffer,1);
+            printf("try to recv command from master. ret = %d\n",ret);
         }
         //more command for status? 
         mount_cifs();
