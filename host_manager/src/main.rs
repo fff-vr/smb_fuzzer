@@ -58,7 +58,7 @@ fn convert_to_u64_vec(data: Vec<u8>) -> Vec<u64> {
         .collect()
 }
 fn send_command_to_agent(agent_socket: &mut TcpStream) -> bool {
-    println!("[send_command_to_agent]");
+    println!("[send_command_to_agent] start");
     let start_execute = b"\x12";
     match agent_socket.write_all(start_execute) {
         Ok(_) => (),
@@ -66,14 +66,16 @@ fn send_command_to_agent(agent_socket: &mut TcpStream) -> bool {
             eprintln!("Failed to send start execute: {}", e);
         }
     }
+    println!("[send_command_to_agent] end");
     true
 }
 
 fn recv_coverage_from_agent(agent_socket: &mut TcpStream) -> bool {
-    println!("[recv_coverage_from_agent]");
+    println!("[recv_coverage_from_agent] start");
     match read_from_socket(agent_socket) {
         Ok(Some(bytes_read)) => {
             let coverage_vector: Vec<u64> = convert_to_u64_vec(bytes_read);
+            println!("[recv_coverage_from_agent] end");
             add_unique_elements_to_global(coverage_vector)
         }
         Ok(None) => {
@@ -104,10 +106,8 @@ fn send_mutate_data(smb_socket: &mut TcpStream) -> io::Result<()> {
 fn connect_to_server() {
     let ip_address = "127.0.0.1";
     let agent_port = 10023;
-    //let smb_port = 10023;
 
     let agent_addr = format!("{}:{}", ip_address, agent_port);
-    //let smb_addr = format!("{}:{}", ip_address, smb_port);
 
     let mut agent_socket = TcpStream::connect(agent_addr).unwrap();
     let listener = TcpListener::bind("0.0.0.0:8080").unwrap();
@@ -116,6 +116,7 @@ fn connect_to_server() {
     loop{
         send_command_to_agent(&mut agent_socket);
         if let Ok((mut stream, _)) = listener.accept() {
+            println!("accpet client");
             send_mutate_data(&mut stream);
         } else {
             println!("Failed to accept a client.");
