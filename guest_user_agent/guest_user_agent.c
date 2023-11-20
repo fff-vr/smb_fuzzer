@@ -100,7 +100,7 @@ int main(int argc, char **argv)
 {
     int fd,master;
     unsigned long *cover, n, i;
-
+    char buffer[0x10];
     /* A single fd descriptor allows coverage collection on a single
      * thread.
      */
@@ -115,9 +115,12 @@ int main(int argc, char **argv)
     cover = (unsigned long*)mmap(NULL, COVER_SIZE * sizeof(unsigned long),PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if ((void*)cover == MAP_FAILED)
             perror("mmap"), exit(1);
-    for(int i =0 ; i<0x100;i++){
-
-        start_coverage(fd,cover);    
+    while(true){
+        start_coverage(fd,cover);
+        if (read(fd,buffer,1) != 1) {
+            exit(1);
+        }
+        //more command for status? 
         mount_cifs();
         end_coverage(fd,cover,master);
     }

@@ -11,17 +11,23 @@ fn connect_to_server(addr: &str) -> io::Result<()> {
             let mut buffer = vec![0; 8 * 0x10000]; // 버퍼 크기를 512KB로 설정
 
             loop {
-                match stream.read(&mut buffer) {
+                match stream.read(&mut buffer){
                     Ok(bytes_read) => {
                         if bytes_read == 0 {
                             // 서버가 연결을 종료했을 경우
                             println!("Server closed the connection");
                             break;
                         }
-
-                        // 읽은 데이터 처리 (예: 화면에 출력)
-                        //println!("Received {} bytes from server", bytes_read);
-                    }
+                        //process coverage
+                        let start_execute = b"\x12";
+                        match stream.write_all(start_execute){
+                            Ok(_)=>(),
+                            Err(e)=>{
+                                eprintln!("Failed to send start execute");
+                            
+                            }
+                        } 
+                    } 
                     Err(e) => {
                         eprintln!("Failed to read from server: {}", e);
                         break;
@@ -76,6 +82,7 @@ fn connect_and_write_to_server(addr: &str) -> io::Result<()> {
 fn main() -> io::Result<()> {
     let ip_address = "127.0.0.1";
     let start_port = 10023;
+    //TODO create execute vm thread.  That thread is also responsible for analyze crash log.
 
     for i in 0..1 {
         let port = start_port + i * 3;
