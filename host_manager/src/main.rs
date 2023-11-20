@@ -63,7 +63,7 @@ fn send_command_to_agent(agent_socket: &mut TcpStream) -> bool {
     match agent_socket.write_all(start_execute) {
         Ok(_) => (),
         Err(e) => {
-            eprintln!("Failed to send start execute: {}", e);
+            panic!("Failed to send start execute: {}", e);
         }
     }
     true
@@ -77,11 +77,11 @@ fn recv_coverage_from_agent(agent_socket: &mut TcpStream) -> bool {
             add_unique_elements_to_global(coverage_vector)
         }
         Ok(None) => {
-            eprintln!("Failed to read from server: zero cov");
+            panic!("Failed to read from server: zero cov");
             false
         }
         Err(e) => {
-            eprintln!("Failed to read from server: {}", e);
+            panic!("Failed to read from server: {}", e);
             false
         }
     }
@@ -95,7 +95,8 @@ fn send_mutate_data(smb_socket: &mut TcpStream) -> io::Result<()> {
             println!("Message sent to server");
         }
         Err(e) => {
-            eprintln!("Failed to write to server");
+            panic!("Failed to write to server");
+            
         }
     }
 
