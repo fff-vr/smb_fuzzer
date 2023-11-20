@@ -119,8 +119,8 @@ int main(int argc, char **argv)
         start_coverage(fd,cover);
         int ret =0;
         while(ret!=1){
-            ret = read(fd,buffer,1);
-            printf("try to recv command from master. ret = %d\n",ret);
+            ret = read(master,buffer,1);
+            printf("try to recv command from master(%d). ret = %d\n",master,ret);
         }
         //more command for status? 
         mount_cifs();
