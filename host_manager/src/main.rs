@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
 use std::io::{self, Read, Write};
-use std::net::TcpStream;
+use std::net::{TcpStream,TcpListener};
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
@@ -99,28 +99,32 @@ fn send_mutate_data(smb_socket: &mut TcpStream) -> io::Result<()> {
             
         }
     }
-
     Ok(())
 }
 
-fn connect_to_server() -> io::Result<()> {
+fn connect_to_server() {
     let ip_address = "127.0.0.1";
     let agent_port = 10023;
-    let smb_port = 10023;
+    //let smb_port = 10023;
 
     let agent_addr = format!("{}:{}", ip_address, agent_port);
-    let smb_addr = format!("{}:{}", ip_address, smb_port);
+    //let smb_addr = format!("{}:{}", ip_address, smb_port);
 
     let mut agent_socket = TcpStream::connect(agent_addr).unwrap();
-    let mut smb_socket = TcpStream::connect(smb_addr).unwrap();
+    let listener = TcpListener::bind("0.0.0.0:8080").unwrap();
+    println!("Server listening on port 8080");
+
     loop{
         send_command_to_agent(&mut agent_socket);
-        send_mutate_data(&mut smb_socket);
+        if let Ok((mut stream, _)) = listener.accept() {
+            send_mutate_data(&mut stream);
+        } else {
+            println!("Failed to accept a client.");
+        }
         if recv_coverage_from_agent(&mut agent_socket){
             println!("get new cov");
         }
     }
-    Ok(())
 }
 
 
