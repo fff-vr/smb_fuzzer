@@ -9,7 +9,10 @@ fn read_from_socket(stream: &mut TcpStream) -> io::Result<Option<Vec<u8>>> {
     loop {
         match stream.read(&mut buffer) {
             Ok(0) => break, // 연결이 종료되었거나 더 이상 읽을 데이터가 없음
-            Ok(bytes_read) => data.extend_from_slice(&buffer[..bytes_read]),
+            Ok(bytes_read) => {
+                data.extend_from_slice(&buffer[..bytes_read]),
+                println!("[read_from_socket] bytes_read = {}",bytes_read);
+            }
             Err(e) => return Err(e),
         }
     }
