@@ -65,11 +65,14 @@ fn recv_coverage_from_agent(agent_socket: &mut TcpStream) -> bool {
         }
     }
 }
-fn send_mutate_data(smb_socket: &mut TcpStream) -> io::Result<()> {
+fn send_mutate_data(smb_socket: &mut TcpStream,data : Vec<u8>) -> io::Result<()> {
     println!("[send_mutate_data]");
-    let message = b"\x04\x00\x00\x00ABCD";
+    let length = data.len();
 
-    match network::write_to_socket(smb_socket, message.to_vec()) {
+    let mut message = length.to_le_bytes().to_vec();
+    message.extend(data);
+
+    match network::write_to_socket(smb_socket, message) {
         Ok(_) => {
             println!("Message sent to server");
         }
@@ -78,6 +81,22 @@ fn send_mutate_data(smb_socket: &mut TcpStream) -> io::Result<()> {
         }
     }
     Ok(())
+}
+fn recv_original_data(smb_socket : &mut TcpStream) -> Vec<u8>{
+    println!("[recv_original_data] start");
+    match network::read_from_socket(smb_socket) {
+        Ok(Some(bytes_read)) => {
+           bytes_read 
+        }
+        Ok(None) => {
+            eprintln!("Failed to read from server: zero cov");
+            vec![]
+        }
+        Err(e) => {
+            eprintln!("Failed to read from server: {}", e);
+            vec![]
+        }
+    }
 }
 
 fn connect_to_server() {
@@ -94,7 +113,9 @@ fn connect_to_server() {
         send_command_to_agent(&mut agent_socket);
         if let Ok((mut stream, _)) = listener.accept() {
             println!("accpet client");
-            send_mutate_data(&mut stream);
+            let original_bytes = recv_original_data(&mut stream);
+            println!("recv original bytess\n{}",original_bytes);
+            send_mutate_data(&mut stream,original_bytes);
         } else {
             println!("Failed to accept a client.");
         }
