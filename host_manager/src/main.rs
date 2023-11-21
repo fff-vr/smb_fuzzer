@@ -1,37 +1,14 @@
+mod mutate;
+mod network;
 use lazy_static::lazy_static;
 use std::io::{self, Read, Write};
-use std::net::{TcpStream,TcpListener};
+use std::net::{TcpListener, TcpStream};
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
+
 lazy_static! {
     static ref GLOBAL_VEC: Mutex<Vec<u64>> = Mutex::new(Vec::new());
-}
-
-fn read_from_socket(stream: &mut TcpStream) -> io::Result<Option<Vec<u8>>> {
-    let mut data = Vec::new();
-    let mut buffer = [0; 4096];
-
-    loop {
-        match stream.read(&mut buffer) {
-            Ok(4096) => {
-                data.extend_from_slice(&buffer[..4096]);
-                //println!("[read_from_socket] bytes_read = {}",4096);
-            }
-            Ok(bytes_read) => {
-                data.extend_from_slice(&buffer[..bytes_read]);
-                //println!("[read_from_socket] bytes_read = {}",bytes_read);
-                break;
-            }
-            Err(e) => return Err(e),
-        }
-    }
-
-    if data.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(data))
-    }
 }
 
 fn add_unique_elements_to_global(va: Vec<u64>) -> bool {
@@ -60,7 +37,7 @@ fn convert_to_u64_vec(data: Vec<u8>) -> Vec<u64> {
 fn send_command_to_agent(agent_socket: &mut TcpStream) -> bool {
     println!("[send_command_to_agent] start");
     let start_execute = b"\x12";
-    match agent_socket.write_all(start_execute) {
+    match network::write_to_socket(agent_socket, start_execute.to_vec()) {
         Ok(_) => (),
         Err(e) => {
             eprintln!("Failed to send start execute: {}", e);
@@ -72,7 +49,7 @@ fn send_command_to_agent(agent_socket: &mut TcpStream) -> bool {
 
 fn recv_coverage_from_agent(agent_socket: &mut TcpStream) -> bool {
     println!("[recv_coverage_from_agent] start");
-    match read_from_socket(agent_socket) {
+    match network::read_from_socket(agent_socket) {
         Ok(Some(bytes_read)) => {
             let coverage_vector: Vec<u64> = convert_to_u64_vec(bytes_read);
             println!("[recv_coverage_from_agent] end");
@@ -92,7 +69,7 @@ fn send_mutate_data(smb_socket: &mut TcpStream) -> io::Result<()> {
     println!("[send_mutate_data]");
     let message = b"\x04\x00\x00\x00ABCD";
 
-    match smb_socket.write_all(message) {
+    match network::write_to_socket(smb_socket, message.to_vec()) {
         Ok(_) => {
             println!("Message sent to server");
         }
@@ -113,7 +90,7 @@ fn connect_to_server() {
     let listener = TcpListener::bind("0.0.0.0:8080").unwrap();
     println!("Server listening on port 8080");
 
-    loop{
+    loop {
         send_command_to_agent(&mut agent_socket);
         if let Ok((mut stream, _)) = listener.accept() {
             println!("accpet client");
@@ -121,13 +98,11 @@ fn connect_to_server() {
         } else {
             println!("Failed to accept a client.");
         }
-        if recv_coverage_from_agent(&mut agent_socket){
+        if recv_coverage_from_agent(&mut agent_socket) {
             println!("get new cov");
         }
     }
 }
-
-
 
 fn main() -> io::Result<()> {
     //TODO create execute vm thread.  That thread is also responsible for analyze crash log.
