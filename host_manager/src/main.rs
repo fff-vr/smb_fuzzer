@@ -11,16 +11,16 @@ lazy_static! {
     static ref GLOBAL_VEC: Mutex<Vec<u64>> = Mutex::new(Vec::new());
 }
 
-fn add_unique_elements_to_global(va: Vec<u64>) -> bool {
+fn add_unique_elements_to_global(va: Vec<u64>) -> u32 {
     let mut global_vec = GLOBAL_VEC.lock().unwrap();
-    let mut is_new = false;
+    let mut new_count = 0;
     for item in va {
         if !global_vec.contains(&item) {
             global_vec.push(item);
-            is_new = true;
+            new_count+=1;
         }
     }
-    is_new
+    new_count
 }
 fn convert_to_u64_vec(data: Vec<u8>) -> Vec<u64> {
     data.chunks(8)
@@ -47,7 +47,7 @@ fn send_command_to_agent(agent_socket: &mut TcpStream) -> bool {
     true
 }
 
-fn recv_coverage_from_agent(agent_socket: &mut TcpStream) -> bool {
+fn recv_coverage_from_agent(agent_socket: &mut TcpStream) -> u32 {
     debug_println!("[recv_coverage_from_agent] start");
     match network::read_from_socket(agent_socket) {
         Ok(Some(bytes_read)) => {
@@ -57,7 +57,7 @@ fn recv_coverage_from_agent(agent_socket: &mut TcpStream) -> bool {
         }
         Ok(None) => {
             debug_eprintln!("Failed to read from server: zero cov");
-            false
+            0
         }
         Err(_) => {
             panic!("Failed to read from server: zero cov");
@@ -120,8 +120,9 @@ fn connect_to_server() {
         } else {
             println!("Failed to accept a client.");
         }
-        if recv_coverage_from_agent(&mut agent_socket) {
-            println!("get new cov");
+        let new_cov_count =  recv_coverage_from_agent(&mut agent_socket);
+        if new_cov_count!=0{
+            println!("get new cov {}",new_cov_count);
         }
     }
 }
