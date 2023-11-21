@@ -113,8 +113,9 @@ fn connect_to_server() {
         send_command_to_agent(&mut agent_socket);
         if let Ok((mut stream, _)) = listener.accept() {
             debug_println!("accpet client");
-            let original_bytes = recv_original_data(&mut stream);
+            let mut original_bytes = recv_original_data(&mut stream);
             debug_println!("recv original bytess\n{}",original_bytes.len());
+            mutate::mutate(&mut original_bytes,10.0);
             send_mutate_data(&mut stream,original_bytes);
         } else {
             println!("Failed to accept a client.");
