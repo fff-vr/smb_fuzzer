@@ -56,20 +56,11 @@ fn recv_coverage_from_agent(agent_socket: &mut TcpStream) -> bool {
             add_unique_elements_to_global(coverage_vector)
         }
         Ok(None) => {
-<<<<<<< HEAD
             debug_eprintln!("Failed to read from server: zero cov");
             false
         }
-        Err(e) => {
-            debug_eprintln!("Failed to read from server: {}", e);
-=======
+        Err(_) => {
             panic!("Failed to read from server: zero cov");
-            false
-        }
-        Err(e) => {
-            panic!("Failed to read from server: {}", e);
->>>>>>> 2417834c57550fee55038da9434871ccbdee24cc
-            false
         }
     }
 }
@@ -85,12 +76,8 @@ fn send_mutate_data(smb_socket: &mut TcpStream,data : Vec<u8>) -> io::Result<()>
             debug_println!("Message sent to server");
         }
         Err(e) => {
-<<<<<<< HEAD
-            debug_eprintln!("Failed to write to server");
-=======
             panic!("Failed to write to server");
             
->>>>>>> 2417834c57550fee55038da9434871ccbdee24cc
         }
     }
     Ok(())
@@ -127,11 +114,7 @@ fn connect_to_server() {
         if let Ok((mut stream, _)) = listener.accept() {
             debug_println!("accpet client");
             let original_bytes = recv_original_data(&mut stream);
-<<<<<<< HEAD
             debug_println!("recv original bytess\n{}",original_bytes.len());
-=======
-            println!("recv original bytess\n{:?}",original_bytes);
->>>>>>> 2417834c57550fee55038da9434871ccbdee24cc
             send_mutate_data(&mut stream,original_bytes);
         } else {
             println!("Failed to accept a client.");
