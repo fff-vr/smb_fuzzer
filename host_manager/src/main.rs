@@ -115,7 +115,7 @@ fn connect_to_server() {
         if let Ok((mut stream, _)) = listener.accept() {
             println!("accpet client");
             let original_bytes = recv_original_data(&mut stream);
-            println!("recv original bytess\n{}",original_bytes);
+            println!("recv original bytess\n{:?}",original_bytes);
             send_mutate_data(&mut stream,original_bytes);
         } else {
             println!("Failed to accept a client.");
