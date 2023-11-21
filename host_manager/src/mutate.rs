@@ -9,9 +9,9 @@ use debug_print::{debug_print, debug_println, debug_eprint, debug_eprintln};
 fn hexdump(label: &str, data: &[u8]) {
     debug_println!("{}", label);
     for (i, byte) in data.iter().enumerate() {
-        print!("{:02x} ", byte);
+        debug_print!("{:02x} ", byte);
         if (i + 1) % 16 == 0 {
-            println!();
+            debug_println!();
         }
     }
     debug_println!("\n");
