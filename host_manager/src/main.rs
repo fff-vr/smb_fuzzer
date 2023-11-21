@@ -102,6 +102,7 @@ fn recv_original_data(smb_socket : &mut TcpStream) -> Vec<u8>{
 fn connect_to_server() {
     let ip_address = "127.0.0.1";
     let agent_port = 10023;
+    let mut loop_count :u64 = 0;
 
     let agent_addr = format!("{}:{}", ip_address, agent_port);
 
@@ -110,6 +111,10 @@ fn connect_to_server() {
     println!("Server listening on port 8080");
 
     loop {
+        loop_count+=1;
+        if loop_count%1000 == 0{
+            println!("fuzz loop = {}",loop_count);
+        }
         send_command_to_agent(&mut agent_socket);
         if let Ok((mut stream, _)) = listener.accept() {
             debug_println!("accpet client");
