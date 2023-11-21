@@ -116,6 +116,7 @@ int main(int argc, char **argv)
     if ((void*)cover == MAP_FAILED)
             perror("mmap"), exit(1);
     while(1){
+        usleep(50000);
         start_coverage(fd,cover);
         int ret =0;
 
