@@ -6,7 +6,7 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
-
+use debug_print::{debug_print, debug_println, debug_eprint, debug_eprintln};
 lazy_static! {
     static ref GLOBAL_VEC: Mutex<Vec<u64>> = Mutex::new(Vec::new());
 }
@@ -35,7 +35,7 @@ fn convert_to_u64_vec(data: Vec<u8>) -> Vec<u64> {
         .collect()
 }
 fn send_command_to_agent(agent_socket: &mut TcpStream) -> bool {
-    println!("[send_command_to_agent] start");
+    debug_println!("[send_command_to_agent] start");
     let start_execute = b"\x12";
     match network::write_to_socket(agent_socket, start_execute.to_vec()) {
         Ok(_) => (),
@@ -43,30 +43,30 @@ fn send_command_to_agent(agent_socket: &mut TcpStream) -> bool {
             eprintln!("Failed to send start execute: {}", e);
         }
     }
-    println!("[send_command_to_agent] end");
+    debug_println!("[send_command_to_agent] end");
     true
 }
 
 fn recv_coverage_from_agent(agent_socket: &mut TcpStream) -> bool {
-    println!("[recv_coverage_from_agent] start");
+    debug_println!("[recv_coverage_from_agent] start");
     match network::read_from_socket(agent_socket) {
         Ok(Some(bytes_read)) => {
             let coverage_vector: Vec<u64> = convert_to_u64_vec(bytes_read);
-            println!("[recv_coverage_from_agent] end");
+            debug_println!("[recv_coverage_from_agent] end");
             add_unique_elements_to_global(coverage_vector)
         }
         Ok(None) => {
-            eprintln!("Failed to read from server: zero cov");
+            debug_eprintln!("Failed to read from server: zero cov");
             false
         }
         Err(e) => {
-            eprintln!("Failed to read from server: {}", e);
+            debug_eprintln!("Failed to read from server: {}", e);
             false
         }
     }
 }
 fn send_mutate_data(smb_socket: &mut TcpStream,data : Vec<u8>) -> io::Result<()> {
-    println!("[send_mutate_data]");
+    debug_println!("[send_mutate_data]");
     let length = data.len();
 
     let mut message = length.to_le_bytes().to_vec();
@@ -74,26 +74,26 @@ fn send_mutate_data(smb_socket: &mut TcpStream,data : Vec<u8>) -> io::Result<()>
 
     match network::write_to_socket(smb_socket, message) {
         Ok(_) => {
-            println!("Message sent to server");
+            debug_println!("Message sent to server");
         }
         Err(e) => {
-            eprintln!("Failed to write to server");
+            debug_eprintln!("Failed to write to server");
         }
     }
     Ok(())
 }
 fn recv_original_data(smb_socket : &mut TcpStream) -> Vec<u8>{
-    println!("[recv_original_data] start");
+    debug_println!("[recv_original_data] start");
     match network::read_from_socket(smb_socket) {
         Ok(Some(bytes_read)) => {
            bytes_read 
         }
         Ok(None) => {
-            eprintln!("Failed to read from server: zero cov");
+            debug_eprintln!("Failed to read from server: zero cov");
             vec![]
         }
         Err(e) => {
-            eprintln!("Failed to read from server: {}", e);
+            debug_eprintln!("Failed to read from server: {}", e);
             vec![]
         }
     }
@@ -112,9 +112,9 @@ fn connect_to_server() {
     loop {
         send_command_to_agent(&mut agent_socket);
         if let Ok((mut stream, _)) = listener.accept() {
-            println!("accpet client");
+            debug_println!("accpet client");
             let original_bytes = recv_original_data(&mut stream);
-            println!("recv original bytess\n{}",original_bytes);
+            debug_println!("recv original bytess\n{}",original_bytes.len());
             send_mutate_data(&mut stream,original_bytes);
         } else {
             println!("Failed to accept a client.");
@@ -131,6 +131,6 @@ fn main() -> io::Result<()> {
     connect_to_server();
 
     loop {
-        thread::sleep(Duration::from_secs(60));
+        thread::sleep(Duration::from_secs(60000));
     }
 }
