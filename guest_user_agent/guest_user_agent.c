@@ -29,7 +29,7 @@ void mount_cifs(){
 	const char* target = "/root/smb_fuzzer/guest_user_agent/tmp"; // 마운트 포인트
 	const char* filesystemtype = "cifs";
 	unsigned long mountflags = NULL;
-	const char* data = "username=data,password=data"; // 사용자 이름과 비밀번호
+	const char* data = "username=data,password=data,vers=1.0"; // 사용자 이름과 비밀번호
     if (mount(source, target, filesystemtype, mountflags, data) != 0) {
         //fprintf(stderr, "Error mounting cifs filesystem: %s\n", strerror(errno));
         //TODO if refuse -> retry
