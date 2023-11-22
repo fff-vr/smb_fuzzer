@@ -1,5 +1,6 @@
 mod mutate;
 mod network;
+mod tools;
 use lazy_static::lazy_static;
 use std::io::{self, Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -70,7 +71,7 @@ fn send_mutate_data(smb_socket: &mut TcpStream,data : Vec<u8>) -> io::Result<()>
 
     let mut message = length.to_le_bytes().to_vec();
     message.extend(data);
-
+    tools::hexdump("[send_mutate_data]",message);
     match network::write_to_socket(smb_socket, message) {
         Ok(_) => {
             debug_println!("Message sent to server");
@@ -118,9 +119,11 @@ fn connect_to_server() {
         send_command_to_agent(&mut agent_socket);
         if let Ok((mut stream, _)) = listener.accept() {
             debug_println!("accpet client");
+            
             let mut original_bytes = recv_original_data(&mut stream);
             debug_println!("recv original bytess\n{}",original_bytes.len());
             mutate::mutate(&mut original_bytes,10.0);
+            
             send_mutate_data(&mut stream,original_bytes);
         } else {
             println!("Failed to accept a client.");
