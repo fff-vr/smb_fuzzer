@@ -127,7 +127,7 @@ fn connect_to_server() {
             tools::hexdump("mutated bytes",&original_bytes);
             send_mutate_data(&mut stream,original_bytes);
         } else {
-            println!("Failed to accept a client.");
+            panic!("Failed to accept a client.");
         }
         let new_cov_count =  recv_coverage_from_agent(&mut agent_socket);
         if new_cov_count!=0{

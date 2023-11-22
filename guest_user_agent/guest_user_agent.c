@@ -25,7 +25,7 @@
 
 void mount_cifs(){
 
-    const char* source = "//127.0.0.1/data"; // SMB 공유 경로
+    const char* source = "//10.0.2.10/data"; // SMB 공유 경로
 	const char* target = "/root/smb_fuzzer/guest_user_agent/tmp"; // 마운트 포인트
 	const char* filesystemtype = "cifs";
 	unsigned long mountflags = NULL;
