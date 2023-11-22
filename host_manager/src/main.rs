@@ -67,11 +67,11 @@ fn recv_coverage_from_agent(agent_socket: &mut TcpStream) -> u32 {
 }
 fn send_mutate_data(smb_socket: &mut TcpStream,data : Vec<u8>) -> io::Result<()> {
     debug_println!("[send_mutate_data]");
-    let length = data.len();
+    let length :u32 = data.len().try_into().unwrap();
 
     let mut message = length.to_le_bytes().to_vec();
     message.extend(data);
-    tools::hexdump("[send_mutate_data]",message);
+    tools::hexdump("send to smb server",&message);
     match network::write_to_socket(smb_socket, message) {
         Ok(_) => {
             debug_println!("Message sent to server");
@@ -122,8 +122,9 @@ fn connect_to_server() {
             
             let mut original_bytes = recv_original_data(&mut stream);
             debug_println!("recv original bytess\n{}",original_bytes.len());
+            tools::hexdump("original bytes",&original_bytes);
             mutate::mutate(&mut original_bytes,10.0);
-            
+            tools::hexdump("mutated bytes",&original_bytes);
             send_mutate_data(&mut stream,original_bytes);
         } else {
             println!("Failed to accept a client.");
