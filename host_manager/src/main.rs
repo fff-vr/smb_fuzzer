@@ -1,6 +1,7 @@
 mod mutate;
 mod network;
 mod tools;
+mod input_queue;
 use lazy_static::lazy_static;
 use std::io::{self, Read, Write};
 use std::net::{TcpListener, TcpStream};
