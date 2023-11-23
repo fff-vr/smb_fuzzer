@@ -10,7 +10,7 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 use debug_print::{debug_println,debug_eprintln};
-use crate::mutator::mutate;
+use crate::mutator::smb1_mutate;
 
 lazy_static! {
     static ref GLOBAL_VEC: Mutex<Vec<u64>> = Mutex::new(Vec::new());
@@ -127,7 +127,7 @@ fn connect_to_server() {
             let mut original_bytes = recv_original_data(&mut stream);
             debug_println!("recv original bytess\n{}",original_bytes.len());
             tools::hexdump("original bytes",&original_bytes);
-            mutate::smb1_mutate(&mut original_bytes,10.0);
+            smb1_mutate::smb1_mutate(&mut original_bytes,10.0);
             tools::hexdump("mutated bytes",&original_bytes);
             send_mutate_data(&mut stream,original_bytes).unwrap();
         } else {
