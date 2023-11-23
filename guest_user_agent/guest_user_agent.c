@@ -29,14 +29,14 @@ void mount_cifs(){
 	const char* target = "/root/smb_fuzzer/guest_user_agent/tmp"; // 마운트 포인트
 	const char* filesystemtype = "cifs";
 	unsigned long mountflags = NULL;
-	const char* data = "username=data,password=data,vers=3.0"; // 사용자 이름과 비밀번호
+	const char* data = "username=data,password=data,vers=3.0,sync"; // 사용자 이름과 비밀번호
     if (mount(source, target, filesystemtype, mountflags, data) != 0) {
         //fprintf(stderr, "Error mounting cifs filesystem: %s\n", strerror(errno));
         //TODO if refuse -> retry
-    	umount("tmp");
+    	umount("/root/smb_fuzzer/guest_user_agent/tmp");
         return -1;
     }
-    umount("tmp");
+    umount("/root/smb_fuzzer/guest_user_agent/tmp");
 }
 void start_coverage(int fd,unsigned long * cover){
  /* Mmap buffer shared between kernel- and user-space. */
@@ -118,7 +118,7 @@ int main(int argc, char **argv)
             perror("mmap"), exit(1);
     while(1){
         //NOTE!!! vm must be boot in 1cpu
-	//usleep(100000);
+	usleep(100000);
         start_coverage(fd,cover);
         int ret =0;
 
