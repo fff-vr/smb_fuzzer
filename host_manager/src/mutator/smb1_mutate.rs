@@ -1,13 +1,12 @@
 use rand::Rng;
-use debug_print::{debug_print, debug_println, debug_eprint, debug_eprintln};
-
+use crate::protocol::smb1;
 /// Mutates a part of the given Vec<u8>.
 /// 
 /// # Arguments
 ///
 /// * `data` - A mutable reference to a Vec<u8> to mutate.
 /// * `mutation_rate` - A percentage (0-100) indicating how much of the Vec should be mutated.
-pub fn mutate(data: &mut Vec<u8>, mutation_rate: f32) {
+pub fn smb1_mutate(data: &mut Vec<u8>, mutation_rate: f32) {
     let length = data.len();
     if length <4{
         return;
@@ -26,3 +25,8 @@ pub fn mutate(data: &mut Vec<u8>, mutation_rate: f32) {
     //tools::hexdump("after mutate",&data[0..]);
 }
 
+
+//fix dynamic value : mabye mid,uid,pid ...
+pub fn fix_dynamic_value()->Vec<u8>{
+    vec![]
+}

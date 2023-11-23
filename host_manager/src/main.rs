@@ -1,13 +1,17 @@
-mod mutate;
+mod mutator;
+mod protocol;
 mod network;
 mod tools;
+mod input_queue;
 use lazy_static::lazy_static;
-use std::io::{self, Read, Write};
+use std::io::{self};
 use std::net::{TcpListener, TcpStream};
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
-use debug_print::{debug_print, debug_println, debug_eprint, debug_eprintln};
+use debug_print::{debug_println,debug_eprintln};
+use crate::mutator::smb1_mutate;
+
 lazy_static! {
     static ref GLOBAL_VEC: Mutex<Vec<u64>> = Mutex::new(Vec::new());
 }
@@ -77,7 +81,7 @@ fn send_mutate_data(smb_socket: &mut TcpStream,data : Vec<u8>) -> io::Result<()>
             debug_println!("Message sent to server");
         }
         Err(e) => {
-            panic!("Failed to write to server");
+            panic!("Failed to write to server {}",e);
             
         }
     }
@@ -123,9 +127,9 @@ fn connect_to_server() {
             let mut original_bytes = recv_original_data(&mut stream);
             debug_println!("recv original bytess\n{}",original_bytes.len());
             tools::hexdump("original bytes",&original_bytes);
-            mutate::mutate(&mut original_bytes,10.0);
+            smb1_mutate::smb1_mutate(&mut original_bytes,10.0);
             tools::hexdump("mutated bytes",&original_bytes);
-            send_mutate_data(&mut stream,original_bytes);
+            send_mutate_data(&mut stream,original_bytes).unwrap();
         } else {
             panic!("Failed to accept a client.");
         }
