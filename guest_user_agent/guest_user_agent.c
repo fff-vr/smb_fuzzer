@@ -33,9 +33,10 @@ void mount_cifs(){
     if (mount(source, target, filesystemtype, mountflags, data) != 0) {
         //fprintf(stderr, "Error mounting cifs filesystem: %s\n", strerror(errno));
         //TODO if refuse -> retry
+    	umount("tmp");
         return -1;
     }
-    umount("//127.0.0.1/data");
+    umount("tmp");
 }
 void start_coverage(int fd,unsigned long * cover){
  /* Mmap buffer shared between kernel- and user-space. */
@@ -116,7 +117,8 @@ int main(int argc, char **argv)
     if ((void*)cover == MAP_FAILED)
             perror("mmap"), exit(1);
     while(1){
-        usleep(50000);
+        //NOTE!!! vm must be boot in 1cpu
+	//usleep(100000);
         start_coverage(fd,cover);
         int ret =0;
 
