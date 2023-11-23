@@ -127,7 +127,7 @@ int main(int argc, char **argv)
             ret = read(master,buffer,1);
             if(ret!=1){
                 printf("wait for recv command from Master. %d\n",retry++);
-                sleep(1);
+                exit(1);
             }
         }
         //more command for status? 
