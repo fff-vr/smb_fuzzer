@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+
 use rand::Rng;
 use rand::rngs::ThreadRng;
 pub struct InputQueue{
@@ -34,6 +35,15 @@ impl InputQueue{
             0=>self.get_nego(),
             1=>self.get_setup(),
             2=>self.get_gettree(),
+            _=>panic!("Unknown Command")
+        }
+    }
+    fn insert_input(&mut self, new_input : Vec<u8>){
+        let command = new_input[0];//TODO fixme : get accurate offset. this is dummy
+        match command{
+            0=>self.insert_nego(new_input),
+            1=>self.insert_setup(new_input),
+            2=>self.insert_gettree(new_input),
             _=>panic!("Unknown Command")
         }
     }

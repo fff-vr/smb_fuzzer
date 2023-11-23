@@ -1,5 +1,5 @@
 use std::io::{self, Read, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::{TcpStream};
 pub fn read_from_socket(stream: &mut TcpStream) -> io::Result<Option<Vec<u8>>> {
     let mut data = Vec::new();
     let mut buffer = [0; 4096];
