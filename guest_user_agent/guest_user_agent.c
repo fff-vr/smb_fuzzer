@@ -86,7 +86,7 @@ void mount_cifs(){
 	const char* target = "/root/smb_fuzzer/guest_user_agent/tmp"; // 마운트 포인트
 	const char* filesystemtype = "cifs";
 	unsigned long mountflags = NULL;
-	const char* data = "username=data,password=data,vers=3.0,sync"; // 사용자 이름과 비밀번호
+	const char* data = "username=data,password=data,vers=3.0,sync,port=12345"; // 사용자 이름과 비밀번호
     if (mount(source, target, filesystemtype, mountflags, data) != 0) {
         //fprintf(stderr, "Error mounting cifs filesystem: %s\n", strerror(errno));
         //TODO if refuse -> retry
@@ -113,6 +113,12 @@ void end_coverage(int fd, unsigned long * cover, int master){
     unsigned long *current_ptr = cover;
     ssize_t total_written = 0;
     ssize_t to_write = n * 8;
+    printf("coverage len = %d\n",n);
+    if(to_write==0){
+	    unsigned long tmp_buf = 0;
+	    write(master,&tmp_buf,8);
+	    return;
+    }
     while (total_written < to_write) {
         ssize_t written = write(master, current_ptr, to_write - total_written);
 
@@ -174,13 +180,14 @@ int main(int argc, char **argv)
     if ((void*)cover == MAP_FAILED)
             perror("mmap"), exit(1);
     while(1){	
+	/*
 	while (1) {
         	if (!check_thread_exists("cifsd")) {
 			break;
         	}
         	usleep(1000); // Wait for 1 second before checking again
     	}
-
+	*/
         start_coverage(fd,cover);
         int ret =0;
 
