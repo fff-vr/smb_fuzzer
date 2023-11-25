@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <linux/types.h>
 #include <sys/mount.h>
+#include <dirent.h>
 #include <unistd.h>
 #include <sys/types.h> 
 #include <sys/socket.h>
@@ -21,6 +22,52 @@
 
 #define KCOV_TRACE_PC  0
 #define KCOV_TRACE_CMP 1
+
+#define MAX_BUF 1024
+
+int check_thread_exists(const char *thread_name) {
+    DIR *d;
+    struct dirent *dir;
+    d = opendir("/proc");
+    if (d) {
+        while ((dir = readdir(d)) != NULL) {
+            if (dir->d_type == DT_DIR) {
+                char path[MAX_BUF];
+                snprintf(path, sizeof(path), "/proc/%s/task", dir->d_name);
+
+                DIR *td = opendir(path);
+                if (td) {
+                    struct dirent *tdir;
+                    while ((tdir = readdir(td)) != NULL) {
+                        if (tdir->d_type == DT_DIR) {
+                            char comm_path[MAX_BUF];
+                            snprintf(comm_path, sizeof(comm_path), "/proc/%s/task/%s/comm", dir->d_name, tdir->d_name);
+
+                            FILE *fp = fopen(comm_path, "r");
+                            if (fp) {
+                                char comm[MAX_BUF];
+                                if (fgets(comm, sizeof(comm), fp) != NULL) {
+                                    if (strstr(comm, thread_name) != NULL) {
+                                        fclose(fp);
+                                        closedir(td);
+                                        closedir(d);
+                                        return 1; // Thread found
+                                    }else{
+				    }
+                                }
+                                fclose(fp);
+                            }
+                        }
+                    }
+                    closedir(td);
+                }
+            }
+        }
+        closedir(d);
+    }
+    return 0; // Thread not found
+}
+
 
 
 void mount_cifs(){
@@ -116,9 +163,14 @@ int main(int argc, char **argv)
     cover = (unsigned long*)mmap(NULL, COVER_SIZE * sizeof(unsigned long),PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if ((void*)cover == MAP_FAILED)
             perror("mmap"), exit(1);
-    while(1){
-        //NOTE!!! vm must be boot in 1cpu
-	usleep(100000);
+    while(1){	
+	while (1) {
+        	if (!check_thread_exists("cifsd")) {
+			break;
+        	}
+        	usleep(1000); // Wait for 1 second before checking again
+    	}
+
         start_coverage(fd,cover);
         int ret =0;
 
