@@ -180,14 +180,6 @@ int main(int argc, char **argv)
     if ((void*)cover == MAP_FAILED)
             perror("mmap"), exit(1);
     while(1){	
-	/*
-	while (1) {
-        	if (!check_thread_exists("cifsd")) {
-			break;
-        	}
-        	usleep(1000); // Wait for 1 second before checking again
-    	}
-	*/
         start_coverage(fd,cover);
         int ret =0;
 
