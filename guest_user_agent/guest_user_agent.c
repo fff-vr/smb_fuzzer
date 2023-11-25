@@ -23,52 +23,62 @@
 #define KCOV_TRACE_PC  0
 #define KCOV_TRACE_CMP 1
 
-#define MAX_BUF 1024
 
-int check_thread_exists(const char *thread_name) {
-    DIR *d;
-    struct dirent *dir;
-    d = opendir("/proc");
-    if (d) {
-        while ((dir = readdir(d)) != NULL) {
-            if (dir->d_type == DT_DIR) {
-                char path[MAX_BUF];
-                snprintf(path, sizeof(path), "/proc/%s/task", dir->d_name);
+#define MAX_BUF 256
 
-                DIR *td = opendir(path);
-                if (td) {
-                    struct dirent *tdir;
-                    while ((tdir = readdir(td)) != NULL) {
-                        if (tdir->d_type == DT_DIR) {
-                            char comm_path[MAX_BUF];
-                            snprintf(comm_path, sizeof(comm_path), "/proc/%s/task/%s/comm", dir->d_name, tdir->d_name);
-
-                            FILE *fp = fopen(comm_path, "r");
-                            if (fp) {
-                                char comm[MAX_BUF];
-                                if (fgets(comm, sizeof(comm), fp) != NULL) {
-                                    if (strstr(comm, thread_name) != NULL) {
-                                        fclose(fp);
-                                        closedir(td);
-                                        closedir(d);
-                                        return 1; // Thread found
-                                    }else{
-				    }
-                                }
-                                fclose(fp);
-                            }
-                        }
-                    }
-                    closedir(td);
-                }
-            }
-        }
-        closedir(d);
+int is_process_dir(const struct dirent *dir) {
+    // Check if directory name is a number (process ID)
+    for (const char *p = dir->d_name; *p; p++) {
+        if (*p < '0' || *p > '9') return 0;
     }
-    return 0; // Thread not found
+    return 1;
 }
 
+int check_thread_name(const char *path, const char *thread_name) {
+    FILE *fp = fopen(path, "r");
+    if (!fp) return 0;
 
+    char comm[MAX_BUF];
+    int found = 0;
+    if (fgets(comm, sizeof(comm), fp) && strstr(comm, thread_name)) {
+        found = 1; // Thread found
+    }
+    fclose(fp);
+    return found;
+}
+
+int check_thread_exists(const char *thread_name) {
+    DIR *d = opendir("/proc");
+    if (!d) return 0;
+
+    struct dirent *dir;
+    while ((dir = readdir(d)) != NULL) {
+        if (dir->d_type == DT_DIR && is_process_dir(dir)) {
+            char task_path[MAX_BUF];
+            snprintf(task_path, sizeof(task_path), "/proc/%s/task", dir->d_name);
+
+            DIR *td = opendir(task_path);
+            if (td) {
+                struct dirent *tdir;
+                while ((tdir = readdir(td)) != NULL) {
+                    if (tdir->d_type == DT_DIR) {
+                        char comm_path[MAX_BUF];
+                        snprintf(comm_path, sizeof(comm_path), "%s/%s/comm", task_path, tdir->d_name);
+
+                        if (check_thread_name(comm_path, thread_name)) {
+                            closedir(td);
+                            closedir(d);
+                            return 1;
+                        }
+                    }
+                }
+                closedir(td);
+            }
+        }
+    }
+    closedir(d);
+    return 0;
+}
 
 void mount_cifs(){
 
