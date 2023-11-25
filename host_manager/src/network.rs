@@ -1,46 +1,17 @@
 use std::io::{self, Read, Write};
 use std::net::TcpStream;
-pub fn read_from_socket(stream: &mut TcpStream) -> io::Result<Option<Vec<u8>>> {
-    let mut data = Vec::new();
-    let mut buffer = [0; 4096];
-
-    loop {
-        match stream.read(&mut buffer) {
-            Ok(4096) => {
-                data.extend_from_slice(&buffer[..4096]);
-            }
-            Ok(bytes_read) => {
-                data.extend_from_slice(&buffer[..bytes_read]);
-                break;
-            }
-            Err(e) => return Err(e),
-        }
-    }
-
-    if data.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(data))
-    }
+pub fn read_from_socket(stream: &mut TcpStream) -> io::Result<Vec<u8>> {
+    println!("[read_from_socket] start");
+    let mut buffer = vec![0; 0x1];
+    let bytes_read = stream.read(&mut buffer)?;
+    buffer.truncate(bytes_read); // 실제로 읽은 데이터 크기로 버퍼 크기 조정
+    println!("[read_from_socket] end");
+    Ok(buffer)
 }
 
 pub fn write_to_socket(stream: &mut TcpStream, data: Vec<u8>) -> io::Result<()> {
-    let mut bytes_written = 0;
-    let total_size = data.len();
-    //TODO send 4 bytes for size?
-    while bytes_written < total_size {
-        match stream.write(&data[bytes_written..]) {
-            Ok(0) => {
-                return Err(io::Error::new(
-                    io::ErrorKind::WriteZero,
-                    "failed to write to stream",
-                ));
-            }
-            Ok(n) => bytes_written += n,
-            Err(ref e) if e.kind() == io::ErrorKind::Interrupted => continue,
-            Err(e) => return Err(e),
-        }
-    }
-
+    println!("[write_to_socket] start");
+    stream.write_all(&data)?;
+    println!("[write_to_socket] end");
     Ok(())
 }
