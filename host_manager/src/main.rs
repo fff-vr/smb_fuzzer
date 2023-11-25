@@ -6,7 +6,7 @@ mod qemu;
 mod tools;
 use crate::mutator::smb1_mutate;
 use crate::qemu::execute::execute_linux_vm;
-
+use std::net::Shutdown;
 use crate::protocol::smb3::{self, parse_smb2_header};
 use debug_print::{debug_eprintln, debug_println};
 use lazy_static::lazy_static;
@@ -71,12 +71,9 @@ fn recv_coverage_from_agent(agent_socket: &mut TcpStream) -> u32 {
 }
 fn send_mutate_data(smb_socket: &mut TcpStream, data: Vec<u8>) -> io::Result<()> {
     debug_println!("[send_mutate_data]");
-    let length: u32 = data.len().try_into().unwrap();
 
-    let mut message = length.to_le_bytes().to_vec();
-    message.extend(data);
-    tools::hexdump("send to smb server", &message);
-    match network::write_to_socket(smb_socket, message) {
+    tools::hexdump("send to smb server", &data);
+    match network::write_to_socket(smb_socket, data) {
         Ok(_) => {
             debug_println!("Message sent to server");
         }
@@ -115,7 +112,7 @@ fn accept_or_crash(listener: &TcpListener) -> Option<TcpStream> {
         }
     }
 }
-fn fuzz_loop() {
+async fn fuzz_loop() ->io::Result<()>{
     let ip_address = "127.0.0.1";
     let agent_port = 10023;
     let mut loop_count: u64 = 0;
@@ -124,39 +121,40 @@ fn fuzz_loop() {
 
     let mut agent_socket = TcpStream::connect(agent_addr).unwrap();
     let listener = TcpListener::bind("0.0.0.0:12345").unwrap();
-    //TODO sequence packet form need;
-
-    let mut i_queue = input_queue::InputQueue::new();
+    println!("bind good");
+    //let mut i_queue = input_queue::InputQueue::new();
     let mut last_packet = vec![];
     listener.set_nonblocking(true).unwrap();
-    println!("Server listening on port 8080");
+    println!("Server listening on port 12345");
 
     loop {
         loop_count += 1;
         if loop_count % 100 == 0 {
             println!("fuzz loop = {}", loop_count);
-            i_queue.print_corpus_count();
+            //i_queue.print_corpus_count();
         }
         //TODO Recv one byte from agent. and check crash here
         send_command_to_agent(&mut agent_socket);
         //How to detect end?
-        if let Some(mut stream) = accept_or_crash(&listener) {
+        if let Some(mut client_stream) = accept_or_crash(&listener) {
             debug_println!("accpet client");
             let mut packet_count = 0;
             let mut smb_server = TcpStream::connect("127.0.0.1:445").unwrap();
 
             loop {
+                //TODO check socket OK
                 println!("start recv ori data");
-                let original_bytes = recv_original_data(&mut smb_server);
-                println!("wtf");
-                if original_bytes.len() == 0 {
+                let request_bytes = recv_original_data(&mut client_stream);
+                if request_bytes.len() == 0 {
                     println!("fail to recv ori data");
                     break;
                 }
+                send_mutate_data(&mut smb_server, request_bytes).unwrap();
+                let respone_bytes = recv_original_data(&mut smb_server);
                 println!("packet_count = {}", packet_count);
                 packet_count += 1;
                 //disable queue mode
-                let mut corpus = original_bytes;
+                let mut corpus = respone_bytes;
                 //TODO scheduling fuzz opcode
                 /*
                 match smb3::parse_command_from_packet(&corpus) {
@@ -169,8 +167,11 @@ fn fuzz_loop() {
                 */
                 last_packet = corpus.clone();
                 println!("send to mutated data");
-                send_mutate_data(&mut stream, corpus).unwrap();
+                send_mutate_data(&mut client_stream, corpus).unwrap();
             }
+
+            smb_server.shutdown(Shutdown::Both).unwrap();
+            client_stream.shutdown(Shutdown::Both).unwrap();
         } else {
             println!("accept timeout from agent. it look like crash. Let's check vm log");
             //TODO analyze vm log
@@ -181,20 +182,20 @@ fn fuzz_loop() {
             }
             panic!("crash occur this is tmp crash. need to proceed fuzzing");
         }
-
+        
         debug_println!("waiting for coverage");
         let new_cov_count = recv_coverage_from_agent(&mut agent_socket);
         debug_println!("recv coverage");
         if new_cov_count != 0 {
             println!("get new cov {}", new_cov_count);
-            i_queue.insert_input(last_packet.clone());
+            //i_queue.insert_input(last_packet.clone());
         }
     }
 }
 
 fn fuzz() {
     //    let (senders, wait_handles) = execute_linux_vm();
-    fuzz_loop();
+    tokio::spawn(fuzz_loop());
     loop {
         thread::sleep(Duration::from_secs(60000));
     }
@@ -233,7 +234,8 @@ fn reply(input_file: String) {
     }
 }
 fn test() {}
-fn main() {
+#[tokio::main]
+async fn main() {
     let args: Vec<String> = env::args().collect();
 
     match args.get(1).map(String::as_str) {
