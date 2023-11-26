@@ -3,3 +3,4 @@ host_manager/target
 host_manager/Cargo.lock
 proxy_for_mutator/a.out
 vm
+workdir
