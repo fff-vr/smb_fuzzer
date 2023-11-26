@@ -151,13 +151,12 @@ int accept_fuzzer_master(){
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = inet_addr("10.0.2.10");
     serv_addr.sin_port = htons(12346);
-
-    // 서버에 연결
-    if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) == -1){
-        perror("connect() error");
-        exit(1);
+    while(1){
+        usleep(10000);
+        if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) != -1){
+            return sock;
+        }
     }
-    return sock;
 }
 int main(int argc, char **argv)
 {
@@ -178,17 +177,17 @@ int main(int argc, char **argv)
     cover = (unsigned long*)mmap(NULL, COVER_SIZE * sizeof(unsigned long),PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if ((void*)cover == MAP_FAILED)
             perror("mmap"), exit(1);
-    while(1){	
+    while(1){
+        while(1){
+            if(check_thread_exists("cifsd")==0){
+                break;
+            }
+        }
         start_coverage(fd,cover);
         int ret =0;
-
-        int retry =0;
-        while(ret != 1){
-            ret = read(master,buffer,1);
-            if(ret!=1){
-                printf("wait for recv command from Master. %d\n",retry++);
-                exit(1);
-            }
+        ret = read(master,buffer,1);
+        if(ret==-1){
+            exit(1);
         }
         //more command for status? 
         mount_cifs();
