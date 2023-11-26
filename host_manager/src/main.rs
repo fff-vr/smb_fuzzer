@@ -4,6 +4,8 @@ mod network;
 mod protocol;
 mod qemu;
 mod tools;
+use std::fs;
+use std::path::Path;
 use crate::mutator::smb1_mutate;
 use crate::protocol::smb3::{self, parse_smb2_header};
 use crate::qemu::execute::execute_linux_vm;
@@ -116,38 +118,38 @@ fn accept_or_crash(listener: &TcpListener, wait_second: u64) -> Option<TcpStream
     }
 }
 async fn fuzz_loop(id: u32) -> io::Result<()> {
-    //let mut child = execute_linux_vm(id).await;
+    let mut child = execute_linux_vm(id).await;
 
     let mut loop_count: u64 = 0;
-    let mut current_loop : u64=0;
-
+    let mut current_loop: u64 = 0;
 
     let agent_listener = TcpListener::bind("0.0.0.0:12346").unwrap();
     let proxy_listener = TcpListener::bind("0.0.0.0:12345").unwrap();
     proxy_listener.set_nonblocking(true).unwrap();
     agent_listener.set_nonblocking(true).unwrap();
 
-    let mut agent_stream =
-        accept_or_crash(&agent_listener, 240).expect("fail to accept agent command channel. TODO restart qemu");
+    let mut agent_stream = accept_or_crash(&agent_listener, 240)
+        .expect("fail to accept agent command channel. TODO restart qemu");
     //let mut i_queue = input_queue::InputQueue::new();
     loop {
-
         loop_count += 1;
         current_loop += 1;
         if loop_count % 1000 == 0 {
             println!("fuzz loop = {}", loop_count);
             //i_queue.print_corpus_count();
         }
-        /*
-        if current_loop%1000 ==0{
+
+        if current_loop % 1000 == 0 {
             if let Err(e) = child.kill().await {
                 eprintln!("fail to kill qemu. {}", e);
             }
             println!("restart vm");
             child = execute_linux_vm(id).await;
-            current_loop=0;
+            let mut agent_stream = accept_or_crash(&agent_listener, 240)
+                .expect("fail to accept agent command channel. TODO restart qemu");
+            current_loop = 0;
         }
-        */
+
         //TODO Recv one byte from agent. and check crash here
         send_command_to_agent(&mut agent_stream);
 
@@ -164,7 +166,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
                     debug_println!("client stream is closed");
                     break;
                 }
-                debug_println!("success recv request_bytes = {}",request_bytes.len());
+                debug_println!("success recv request_bytes = {}", request_bytes.len());
                 send_data(&mut smb_server, request_bytes).unwrap();
                 let respone_bytes = recv_data(&mut smb_server);
                 debug_println!("packet_count = {}", packet_record.len());
@@ -173,7 +175,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
                 let mut corpus = respone_bytes;
 
                 if rand::thread_rng().gen_range(1..=5) == 1 {
-                    //smb1_mutate::smb1_mutate(&mut corpus, 10.0);
+                    smb1_mutate::smb1_mutate(&mut corpus, 10.0);
                 }
 
                 packet_record.push(corpus.clone());
@@ -185,15 +187,29 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             client_stream.shutdown(Shutdown::Both).unwrap();
         } else {
             println!("accept timeout from agent. it look like crash. Let's check vm log");
-            /*
+
             if let Err(e) = child.kill().await {
                 eprintln!("fail to kill qemu. {}", e);
             }
+            let source_path = "/home/jjy/tools/smb_fuzzer/workdir/test1.txt";
+            let mut target_path = Path::new("/home/jjy/tools/smb_fuzzer/save/log.txt").to_path_buf();
+
+            let mut counter = 1;
+            while target_path.exists() {
+                target_path.set_file_name(format!("log{}.txt", counter));
+                counter += 1;
+            }
+
+            // 파일 이동
+            fs::rename(source_path, &target_path).unwrap();
 
             child = execute_linux_vm(id).await;
+            let mut agent_stream = accept_or_crash(&agent_listener, 240)
+                .expect("fail to accept agent command channel. TODO restart qemu");
+
             println!("{:?}", packet_record);
-            current_loop=0;
-            */
+            current_loop = 0;
+
             //TODO analyze vm log
             //TODO save packet
         }
