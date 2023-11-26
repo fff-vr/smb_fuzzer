@@ -135,30 +135,29 @@ void end_coverage(int fd, unsigned long * cover, int master){
     return;
 }
 int accept_fuzzer_master(){
-    int sockfd, newsockfd, portno;
-    socklen_t clilen;
-    struct sockaddr_in serv_addr, cli_addr;
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) 
-       abort();
 
-    bzero((char *) &serv_addr, sizeof(serv_addr));
-    portno = 8081;
+    int sock;
+    struct sockaddr_in serv_addr;
 
+    // 소켓 생성
+    sock = socket(PF_INET, SOCK_STREAM, 0);
+    if (sock == -1){
+        perror("socket() error");
+        exit(1);
+    }
+
+    // 서버 주소 및 포트 설정
+    memset(&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = INADDR_ANY;
-    serv_addr.sin_port = htons(portno);
+    serv_addr.sin_addr.s_addr = inet_addr("10.0.2.10");
+    serv_addr.sin_port = htons(12346);
 
-    if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) 
-             error("ERROR on binding");
-
-    listen(sockfd, 5);
-    clilen = sizeof(cli_addr);
-
-    newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
-    if (newsockfd < 0) 
-          abort();
-    return newsockfd;
+    // 서버에 연결
+    if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) == -1){
+        perror("connect() error");
+        exit(1);
+    }
+    return sock;
 }
 int main(int argc, char **argv)
 {
