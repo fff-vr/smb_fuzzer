@@ -27,7 +27,7 @@ pub fn smb1_mutate(data: &mut Vec<u8>, mutation_rate: f32) {
     if length < 4 {
         return;
     }
-
+    /*
     let command = smb3::parse_command_from_packet(&data[..]);
     let mut saved_negotiate = smb3::Smb3NegotiateResponse::new();
 
@@ -38,6 +38,7 @@ pub fn smb1_mutate(data: &mut Vec<u8>, mutation_rate: f32) {
         }
         _ => panic!("TODO"),
     }
+    */
     let num_mutations = (length as f32 * mutation_rate / 100.0).round() as usize;
     let mut rng = rand::thread_rng();
     for _ in 0..num_mutations {
@@ -46,6 +47,7 @@ pub fn smb1_mutate(data: &mut Vec<u8>, mutation_rate: f32) {
         // but other mutations like random byte replacement can also be used.
         data[index] = rng.gen();
     }
+    /*
     match command {
         smb3::Smb2Command::Negotiate => {
             set_negotiate(data, saved_negotiate);
@@ -55,7 +57,7 @@ pub fn smb1_mutate(data: &mut Vec<u8>, mutation_rate: f32) {
 
     //restore opcode. TODO mutate this?
     set_command(data, command.to_u16());
-
+    */
     //tools::hexdump("after mutate",&data[0..]);
 }
 

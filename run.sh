@@ -1,8 +1,8 @@
 KERNEL=/home/jjy/target/linux/
 IMAGE=./tools
 qemu-system-x86_64 \
-	-m 4G \
-	-smp 2,sockets=2,cores=1 \
+	-m 8G \
+	-smp 4,sockets=4,cores=1 \
 	-kernel $KERNEL/arch/x86/boot/bzImage \
 	-append "console=ttyS0 root=/dev/sda earlyprintk=serial net.ifnames=0" \
 	-hda ./vm/bullseye.img \

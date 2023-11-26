@@ -5,13 +5,14 @@ mod protocol;
 mod qemu;
 mod tools;
 use crate::mutator::smb1_mutate;
-use crate::qemu::execute::execute_linux_vm;
-use std::net::Shutdown;
 use crate::protocol::smb3::{self, parse_smb2_header};
+use crate::qemu::execute::execute_linux_vm;
 use debug_print::{debug_eprintln, debug_println};
 use lazy_static::lazy_static;
+use rand::Rng;
 use std::env;
 use std::io::{self, ErrorKind};
+use std::net::Shutdown;
 use std::net::{TcpListener, TcpStream};
 use std::sync::Mutex;
 use std::thread;
@@ -43,10 +44,10 @@ fn convert_to_u64_vec(data: Vec<u8>) -> Vec<u64> {
         })
         .collect()
 }
-fn send_command_to_agent(agent_socket: &mut TcpStream) -> bool {
+fn send_command_to_agent(agent_listener: &mut TcpStream) -> bool {
     debug_println!("[send_command_to_agent] start");
     let start_execute = b"\x12";
-    match network::write_to_socket(agent_socket, start_execute.to_vec()) {
+    match network::write_to_socket(agent_listener, start_execute.to_vec()) {
         Ok(_) => (),
         Err(e) => {
             panic!("Failed to send start execute: {}", e);
@@ -56,9 +57,9 @@ fn send_command_to_agent(agent_socket: &mut TcpStream) -> bool {
     true
 }
 
-fn recv_coverage_from_agent(agent_socket: &mut TcpStream) -> u32 {
+fn recv_coverage_from_agent(agent_listener: &mut TcpStream) -> u32 {
     debug_println!("[recv_coverage_from_agent] start");
-    match network::read_from_socket(agent_socket) {
+    match network::read_from_socket(agent_listener) {
         Ok(bytes_read) => {
             let coverage_vector: Vec<u64> = convert_to_u64_vec(bytes_read);
             debug_println!("[recv_coverage_from_agent] end");
@@ -93,8 +94,8 @@ fn recv_original_data(smb_socket: &mut TcpStream) -> Vec<u8> {
     }
 }
 
-fn accept_or_crash(listener: &TcpListener) -> Option<TcpStream> {
-    let timeout = Duration::from_secs(1000000);
+fn accept_or_crash(listener: &TcpListener,wait_second : u64) -> Option<TcpStream> {
+    let timeout = Duration::from_secs(wait_second);
     let start_wait = Instant::now();
     loop {
         match listener.accept() {
@@ -112,20 +113,21 @@ fn accept_or_crash(listener: &TcpListener) -> Option<TcpStream> {
         }
     }
 }
-async fn fuzz_loop() ->io::Result<()>{
+async fn fuzz_loop() -> io::Result<()> {
     let ip_address = "127.0.0.1";
     let agent_port = 10023;
     let mut loop_count: u64 = 0;
 
     let agent_addr = format!("{}:{}", ip_address, agent_port);
 
-    let mut agent_socket = TcpStream::connect(agent_addr).unwrap();
-    let listener = TcpListener::bind("0.0.0.0:12345").unwrap();
-    println!("bind good");
+    let mut agent_listener = TcpListener::bind("0.0.0.0:12346").unwrap();
+    let proxy_listener = TcpListener::bind("0.0.0.0:12345").unwrap();
+    proxy_listener.set_nonblocking(true).unwrap();
+    agent_listener.set_nonblocking(true).unwrap();
+
+    let mut agent_stream = accept_or_crash(&agent_listener, 120).expect("fail to accept agent command channel");
     //let mut i_queue = input_queue::InputQueue::new();
     let mut last_packet = vec![];
-    listener.set_nonblocking(true).unwrap();
-    println!("Server listening on port 12345");
 
     loop {
         loop_count += 1;
@@ -134,39 +136,35 @@ async fn fuzz_loop() ->io::Result<()>{
             //i_queue.print_corpus_count();
         }
         //TODO Recv one byte from agent. and check crash here
-        send_command_to_agent(&mut agent_socket);
+        send_command_to_agent(&mut agent_stream);
         //How to detect end?
-        if let Some(mut client_stream) = accept_or_crash(&listener) {
+        if let Some(mut client_stream) = accept_or_crash(&proxy_listener,60) {
             debug_println!("accpet client");
             let mut packet_count = 0;
             let mut smb_server = TcpStream::connect("127.0.0.1:445").unwrap();
 
             loop {
                 //TODO check socket OK
-                println!("start recv ori data");
+                debug_println!("start recv ori data");
                 let request_bytes = recv_original_data(&mut client_stream);
                 if request_bytes.len() == 0 {
-                    println!("fail to recv ori data");
+                    debug_println!("fail to recv ori data");
                     break;
                 }
                 send_mutate_data(&mut smb_server, request_bytes).unwrap();
                 let respone_bytes = recv_original_data(&mut smb_server);
-                println!("packet_count = {}", packet_count);
+                debug_println!("packet_count = {}", packet_count);
                 packet_count += 1;
+                
                 //disable queue mode
                 let mut corpus = respone_bytes;
-                //TODO scheduling fuzz opcode
-                /*
-                match smb3::parse_command_from_packet(&corpus) {
-                    smb3::Smb2Command::SessionSetup => {
-                        println!("asdasdasdasd");
-                        //smb1_mutate::smb1_mutate(&mut corpus, 10.0);
-                    }
-                    _ => (),
+
+                if rand::thread_rng().gen_range(1..=5) == 1 {
+                    smb1_mutate::smb1_mutate(&mut corpus, 10.0);
                 }
-                */
+
                 last_packet = corpus.clone();
-                println!("send to mutated data");
+                debug_println!("send to mutated data");
                 send_mutate_data(&mut client_stream, corpus).unwrap();
             }
 
@@ -182,9 +180,10 @@ async fn fuzz_loop() ->io::Result<()>{
             }
             panic!("crash occur this is tmp crash. need to proceed fuzzing");
         }
-        
+
         debug_println!("waiting for coverage");
-        let new_cov_count = recv_coverage_from_agent(&mut agent_socket);
+
+        let new_cov_count = recv_coverage_from_agent(&mut agent_stream);
         debug_println!("recv coverage");
         if new_cov_count != 0 {
             println!("get new cov {}", new_cov_count);
@@ -194,7 +193,8 @@ async fn fuzz_loop() ->io::Result<()>{
 }
 
 fn fuzz() {
-    //    let (senders, wait_handles) = execute_linux_vm();
+    let (senders, _) = execute_linux_vm();
+
     tokio::spawn(fuzz_loop());
     loop {
         thread::sleep(Duration::from_secs(60000));
@@ -211,16 +211,19 @@ fn reply(input_file: String) {
 
     let agent_addr = format!("{}:{}", ip_address, agent_port);
 
-    let mut agent_socket = TcpStream::connect(agent_addr).unwrap();
-    let listener = TcpListener::bind("0.0.0.0:8080").unwrap();
+    let mut agent_listener = TcpListener::bind("0.0.0.0:8081").unwrap();
+    let smb_listener = TcpListener::bind("0.0.0.0:8080").unwrap();
+    
+    smb_listener.set_nonblocking(true).unwrap();
+    agent_listener.set_nonblocking(true).unwrap();
     //TODO sequence packet form need;
-    listener.set_nonblocking(true).unwrap();
+    let mut agent_stream = accept_or_crash(&agent_listener,60).expect("fail to accecpt agent socket");
     println!("Server listening on port 8080");
 
     //TODO Recv one byte from agent. and check crash here
-    send_command_to_agent(&mut agent_socket);
+    send_command_to_agent(&mut agent_stream);
 
-    if let Some(mut stream) = accept_or_crash(&listener) {
+    if let Some(mut stream) = accept_or_crash(&smb_listener,60) {
         debug_println!("accpet client");
 
         let mut original_bytes = recv_original_data(&mut stream);
@@ -228,7 +231,7 @@ fn reply(input_file: String) {
         debug_println!("send reply packet len => {}", reply_packet.len());
         send_mutate_data(&mut stream, reply_packet).unwrap();
     }
-    let new_cov_count = recv_coverage_from_agent(&mut agent_socket);
+    let new_cov_count = recv_coverage_from_agent(&mut agent_stream);
     if new_cov_count != 0 {
         println!("get new cov {}", new_cov_count);
     }
