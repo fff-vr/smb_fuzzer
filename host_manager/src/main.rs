@@ -116,7 +116,7 @@ fn accept_or_crash(listener: &TcpListener, wait_second: u64) -> Option<TcpStream
     }
 }
 async fn fuzz_loop(id: u32) -> io::Result<()> {
-    let mut child = execute_linux_vm(id).await;
+    //let mut child = execute_linux_vm(id).await;
 
     let mut loop_count: u64 = 0;
     let mut current_loop : u64=0;
@@ -138,6 +138,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             println!("fuzz loop = {}", loop_count);
             //i_queue.print_corpus_count();
         }
+        /*
         if current_loop%1000 ==0{
             if let Err(e) = child.kill().await {
                 eprintln!("fail to kill qemu. {}", e);
@@ -146,6 +147,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             child = execute_linux_vm(id).await;
             current_loop=0;
         }
+        */
         //TODO Recv one byte from agent. and check crash here
         send_command_to_agent(&mut agent_stream);
 
@@ -183,7 +185,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             client_stream.shutdown(Shutdown::Both).unwrap();
         } else {
             println!("accept timeout from agent. it look like crash. Let's check vm log");
-
+            /*
             if let Err(e) = child.kill().await {
                 eprintln!("fail to kill qemu. {}", e);
             }
@@ -191,6 +193,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             child = execute_linux_vm(id).await;
             println!("{:?}", packet_record);
             current_loop=0;
+            */
             //TODO analyze vm log
             //TODO save packet
         }
