@@ -80,18 +80,17 @@ int check_thread_exists(const char *thread_name) {
     return 0;
 }
 
-void mount_cifs(){
+void mount_cifs(int proxy_port){
 
     const char* source = "//10.0.2.10/data"; // SMB 공유 경로
 	const char* target = "/root/smb_fuzzer/guest_user_agent/tmp"; // 마운트 포인트
 	const char* filesystemtype = "cifs";
-	unsigned long mountflags = NULL;
-	const char* data = "username=data,password=data,vers=3.0,sync,port=12345"; // 사용자 이름과 비밀번호
+	unsigned long mountflags = 0;
+	char data[0x1000]; 
+    sprintf(data,"username=data,password=data,vers=3.0,sync,port=%d", proxy_port); // 사용자 이름과 비밀번호
     if (mount(source, target, filesystemtype, mountflags, data) != 0) {
-        //fprintf(stderr, "Error mounting cifs filesystem: %s\n", strerror(errno));
-        //TODO if refuse -> retry
     	umount("/root/smb_fuzzer/guest_user_agent/tmp");
-        return -1;
+        return ;
     }
     umount("/root/smb_fuzzer/guest_user_agent/tmp");
 }
@@ -134,7 +133,7 @@ void end_coverage(int fd, unsigned long * cover, int master){
     }
     return;
 }
-int accept_fuzzer_master(){
+int accept_fuzzer_master(int master_port){
 
     int sock;
     struct sockaddr_in serv_addr;
@@ -150,7 +149,7 @@ int accept_fuzzer_master(){
     memset(&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = inet_addr("10.0.2.10");
-    serv_addr.sin_port = htons(12346);
+    serv_addr.sin_port = htons(master_port);
     while(1){
         usleep(10000);
         if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) != -1){
@@ -166,7 +165,7 @@ int main(int argc, char **argv)
     /* A single fd descriptor allows coverage collection on a single
      * thread.
      */
-    master = accept_fuzzer_master();
+    master = accept_fuzzer_master(atoi(argv[1]));
     fd = open("/sys/kernel/debug/kcov", O_RDWR);
     if (fd == -1)
             perror("open"), exit(1);
@@ -190,7 +189,7 @@ int main(int argc, char **argv)
             exit(1);
         }
         //more command for status? 
-        mount_cifs();
+        mount_cifs(atoi(argv[2]));
         end_coverage(fd,cover,master);
     }
        /* Free resources. */
