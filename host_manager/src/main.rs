@@ -145,7 +145,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             }
             println!("restart vm");
             child = execute_linux_vm(id).await;
-            let mut agent_stream = accept_or_crash(&agent_listener, 240)
+            agent_stream = accept_or_crash(&agent_listener, 240)
                 .expect("fail to accept agent command channel. TODO restart qemu");
             current_loop = 0;
         }
@@ -157,7 +157,8 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
         if let Some(mut client_stream) = accept_or_crash(&proxy_listener, 30) {
             debug_println!("accpet client");
             let mut smb_server = TcpStream::connect("127.0.0.1:445").unwrap();
-
+            client_stream.set_read_timeout(Some(Duration::new(1, 0)))?;
+            smb_server.set_read_timeout(Some(Duration::new(1, 0)))?;
             loop {
                 //TODO check socket OK
                 debug_println!("start recv ori data");
@@ -182,7 +183,13 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
                 debug_println!("send to mutated data");
                 send_data(&mut client_stream, corpus).unwrap();
             }
-
+            debug_println!("waiting for coverage");
+            let new_cov_count = recv_coverage_from_agent(&mut agent_stream);
+            debug_println!("recv coverage");
+            if new_cov_count != 0 {
+                println!("get new cov {}", new_cov_count);
+                //i_queue.insert_input(last_packet.clone());
+            }
             smb_server.shutdown(Shutdown::Both).unwrap();
             client_stream.shutdown(Shutdown::Both).unwrap();
         } else {
@@ -204,7 +211,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             fs::rename(source_path, &target_path).unwrap();
 
             child = execute_linux_vm(id).await;
-            let mut agent_stream = accept_or_crash(&agent_listener, 240)
+            agent_stream = accept_or_crash(&agent_listener, 240)
                 .expect("fail to accept agent command channel. TODO restart qemu");
 
             println!("{:?}", packet_record);
@@ -214,14 +221,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             //TODO save packet
         }
 
-        debug_println!("waiting for coverage");
 
-        let new_cov_count = recv_coverage_from_agent(&mut agent_stream);
-        debug_println!("recv coverage");
-        if new_cov_count != 0 {
-            println!("get new cov {}", new_cov_count);
-            //i_queue.insert_input(last_packet.clone());
-        }
     }
 }
 
