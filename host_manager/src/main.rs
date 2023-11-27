@@ -242,13 +242,9 @@ fn reply(input_file: String) {
         Ok(data) => data,
         Err(e) => panic!("Failed to read file: {}", e),
     };
-    let ip_address = "127.0.0.1";
-    let agent_port = 10023;
-    let mut loop_count: u64 = 0;
 
-    let agent_addr = format!("{}:{}", ip_address, agent_port);
 
-    let mut agent_listener = TcpListener::bind("0.0.0.0:8081").unwrap();
+    let agent_listener = TcpListener::bind("0.0.0.0:8081").unwrap();
     let smb_listener = TcpListener::bind("0.0.0.0:8080").unwrap();
 
     smb_listener.set_nonblocking(true).unwrap();
