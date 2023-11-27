@@ -69,7 +69,7 @@ fn recv_coverage_from_agent(agent_listener: &mut TcpStream) -> u32 {
             add_unique_elements_to_global(coverage_vector)
         }
         Err(_) => {
-            panic!("Failed to read from server: zero cov");
+            0
         }
     }
 }
@@ -106,6 +106,7 @@ fn accept_or_crash(listener: &TcpListener, wait_second: u64) -> Option<TcpStream
             }
             Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
                 thread::sleep(Duration::from_secs(1));
+                debug_println!("wait for client");
                 if start_wait.elapsed() >= timeout {
                     return None;
                 }
@@ -132,6 +133,8 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
     let mut agent_stream = accept_or_crash(&agent_listener, 240)
         .expect("fail to accept agent command channel. TODO restart qemu");
     //let mut i_queue = input_queue::InputQueue::new();
+    
+    agent_stream.set_read_timeout(Some(Duration::new(1, 0)))?;
     loop {
         loop_count += 1;
         current_loop += 1;
@@ -140,7 +143,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             //i_queue.print_corpus_count();
         }
 
-        if current_loop % 1000 == 0 {
+        if current_loop % 5000 == 0 {
             if let Err(e) = child.kill().await {
                 eprintln!("fail to kill qemu. {}", e);
             }
@@ -148,6 +151,8 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             child = execute_linux_vm(id).await;
             agent_stream = accept_or_crash(&agent_listener, 240)
                 .expect("fail to accept agent command channel. TODO restart qemu");
+    
+            agent_stream.set_read_timeout(Some(Duration::new(1, 0)))?;
             current_loop = 0;
         }
 
@@ -217,20 +222,18 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             child = execute_linux_vm(id).await;
             agent_stream = accept_or_crash(&agent_listener, 240)
                 .expect("fail to accept agent command channel. TODO restart qemu");
-
+            agent_stream.set_read_timeout(Some(Duration::new(1, 0)))?;
             println!("{:?}", packet_record);
             current_loop = 0;
 
             //TODO analyze vm log
             //TODO save packet
         }
-
-
     }
 }
 
 async fn fuzz() {
-    for i in 1..4{
+    for i in 1..2{
         tokio::spawn(fuzz_loop(i));
     }
     loop {
