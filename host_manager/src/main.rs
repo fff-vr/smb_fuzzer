@@ -90,8 +90,7 @@ fn send_data(smb_socket: &mut TcpStream, data: Vec<u8>) -> io::Result<()> {
 fn recv_data(smb_socket: &mut TcpStream) -> Vec<u8> {
     match network::read_from_socket(smb_socket) {
         Ok(bytes_read) => bytes_read,
-        Err(e) => {
-            println!("Failed to read from server: {}", e);
+        Err(_) => {
             vec![]
         }
     }
@@ -122,9 +121,11 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
 
     let mut loop_count: u64 = 0;
     let mut current_loop: u64 = 0;
+    let agent_address = format!("0.0.0.0:{}",12345+id*2);
+    let proxy_address = format!("0.0.0.0:{}",12346+id*2);
 
-    let agent_listener = TcpListener::bind("0.0.0.0:12346").unwrap();
-    let proxy_listener = TcpListener::bind("0.0.0.0:12345").unwrap();
+    let agent_listener = TcpListener::bind(agent_address).unwrap();
+    let proxy_listener = TcpListener::bind(proxy_address).unwrap();
     proxy_listener.set_nonblocking(true).unwrap();
     agent_listener.set_nonblocking(true).unwrap();
 
@@ -198,8 +199,8 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             if let Err(e) = child.kill().await {
                 eprintln!("fail to kill qemu. {}", e);
             }
-            let source_path = "/home/jjy/tools/smb_fuzzer/workdir/test1.txt";
-            let mut target_path = Path::new("/home/jjy/tools/smb_fuzzer/save/log.txt").to_path_buf();
+            let source_path = format!("../workdir/test{}.txt",id);
+            let mut target_path = Path::new("../workdir/save/log.txt").to_path_buf();
 
             let mut counter = 1;
             while target_path.exists() {
@@ -208,6 +209,9 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             }
 
             // 파일 이동
+            println!("{}",source_path);
+            println!("{}",target_path.display());
+
             fs::rename(source_path, &target_path).unwrap();
 
             child = execute_linux_vm(id).await;
@@ -226,7 +230,9 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
 }
 
 async fn fuzz() {
-    tokio::spawn(fuzz_loop(1));
+    for i in 1..4{
+        tokio::spawn(fuzz_loop(i));
+    }
     loop {
         thread::sleep(Duration::from_secs(60000));
     }
