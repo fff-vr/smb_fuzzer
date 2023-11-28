@@ -17,7 +17,7 @@ pub async fn execute_linux_vm(i: u32) -> Child {
         .arg("-kernel")
         .arg("/home/jjy/target/linux//arch/x86/boot/bzImage")
         .arg("-append")
-        .arg("console=ttyS0 root=/dev/sda earlyprintk=serial net.ifnames=0")
+        .arg("console=ttyS0 root=/dev/sda earlyprintk=serial net.ifnames=0 nokaslr")
         .arg("-drive")
         .arg(format!("file={}",vm_path))
         .arg("-net")
