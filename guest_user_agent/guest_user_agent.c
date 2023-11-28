@@ -87,7 +87,7 @@ void mount_cifs(int proxy_port){
 	const char* filesystemtype = "cifs";
 	unsigned long mountflags = 0;
 	char data[0x1000]; 
-    sprintf(data,"username=data,password=data,vers=3.0,sync,port=%d", proxy_port); // 사용자 이름과 비밀번호
+    sprintf(data,"username=data,password=data,vers=3.0,sync,port=%d,soft", proxy_port); // 사용자 이름과 비밀번호
     if (mount(source, target, filesystemtype, mountflags, data) != 0) {
     	umount("/root/smb_fuzzer/guest_user_agent/tmp");
         return ;
