@@ -22,6 +22,7 @@ use std::time::{Duration, Instant};
 use tokio::process::Child;
 lazy_static! {
     static ref GLOBAL_VEC: Mutex<Vec<u64>> = Mutex::new(Vec::new());
+    static ref FUZZ_COUNTER: Mutex<u64> = Mutex::new(0);
 }
 
 fn add_unique_elements_to_global(va: Vec<u64>) -> u32 {
@@ -120,7 +121,6 @@ fn accept_or_crash(listener: &TcpListener, wait_second: u64) -> Option<TcpStream
 async fn fuzz_loop(id: u32) -> io::Result<()> {
     let mut child = execute_linux_vm(id).await;
 
-    let mut loop_count: u64 = 0;
     let mut current_loop: u64 = 0;
     let agent_address = format!("0.0.0.0:{}",12345+id*2);
     let proxy_address = format!("0.0.0.0:{}",12346+id*2);
@@ -136,13 +136,13 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
     
     agent_stream.set_read_timeout(Some(Duration::new(1, 0)))?;
     loop {
-        loop_count += 1;
         current_loop += 1;
-        if loop_count % 1000 == 0 {
-            println!("fuzz loop = {}", loop_count);
-            //i_queue.print_corpus_count();
+        {
+            let mut fuzz_counter = FUZZ_COUNTER.lock().unwrap();
+            *fuzz_counter+=1;
         }
-
+        
+        //TODO move to config
         if current_loop % 5000 == 0 {
             if let Err(e) = child.kill().await {
                 eprintln!("fail to kill qemu. {}", e);
@@ -232,12 +232,13 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
     }
 }
 
-async fn fuzz() {
-    for i in 1..2{
+async fn fuzz(config : tools::Config) {
+    let instance_num =config.instance_num+1;
+    for i in 1 .. instance_num{
         tokio::spawn(fuzz_loop(i));
     }
     loop {
-        thread::sleep(Duration::from_secs(60000));
+        thread::sleep(Duration::from_secs(60));
     }
 }
 fn reply(input_file: String) {
@@ -273,9 +274,9 @@ fn test() {}
 #[tokio::main]
 async fn main() {
     let args: Vec<String> = env::args().collect();
-
+    let config = tools::read_config("../config.json");
     match args.get(1).map(String::as_str) {
-        Some("fuzz") => fuzz().await,
+        Some("fuzz") => fuzz(config).await,
         Some("reply") => {
             if let Some(reply_arg) = args.get(2) {
                 reply(reply_arg.to_string());
