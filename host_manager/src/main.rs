@@ -238,6 +238,10 @@ async fn fuzz(config : tools::Config) {
         tokio::spawn(fuzz_loop(i));
     }
     loop {
+        {
+            let mut fuzz_counter = FUZZ_COUNTER.lock().unwrap();
+            println!("fuzz loop = {}",fuzz_counter);
+        }
         thread::sleep(Duration::from_secs(60));
     }
 }
