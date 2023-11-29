@@ -234,7 +234,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             //TODO save packet
         }
 
-        println!("packet_count = {}", packet_record.len());
+        debug_println!("packet_count = {}", packet_record.len());
     }
 }
 
