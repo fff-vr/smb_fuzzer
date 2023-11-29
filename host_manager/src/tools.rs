@@ -5,6 +5,7 @@ use std::io::{Read, Write};
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use lazy_static::lazy_static;
+use std::fs::OpenOptions;
 #[derive(Serialize, Deserialize)]
 struct Config {
     instance_num: u32,
@@ -72,5 +73,16 @@ pub fn get_instance_num()->u32{
         config.instance_num
     } else {
         panic!("can not get instance_num");
+    }
+}
+
+pub fn save_vec64_to_file(path : String,vector : Vec<u64>){
+    let mut file = OpenOptions::new()
+        .write(true)
+        .append(true) // append를 true로 설정
+        .create(true) // 파일이 존재하지 않을 경우 새로 생성
+        .open(path).unwrap();
+    for address in vector{
+        writeln!(file,"0x{:X}",address).unwrap();
     }
 }

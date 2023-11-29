@@ -199,7 +199,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             smb_server.shutdown(Shutdown::Both).unwrap();
             client_stream.shutdown(Shutdown::Both).unwrap();
         } else {
-            println!("accept timeout from agent. it look like crash. Let's check vm log");
+            println!("accept timeout from agent. it look like crash. t's check vm log");
 
             if let Err(e) = child.kill().await {
                 eprintln!("fail to kill qemu. {}", e);
@@ -229,6 +229,8 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             //TODO analyze vm log
             //TODO save packet
         }
+
+        println!("packet_count = {}", packet_record.len());
     }
 }
 
@@ -238,6 +240,10 @@ async fn fuzz() {
         tokio::spawn(fuzz_loop(i));
     }
     loop {
+        {
+            let global_vec = GLOBAL_VEC.lock().unwrap();
+            tools::save_vec64_to_file("../coverage.txt".to_string(),global_vec.to_vec());
+        }
         thread::sleep(Duration::from_secs(60));
     }
 }
