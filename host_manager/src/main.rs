@@ -137,7 +137,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
     let mut agent_stream = accept_or_crash(&agent_listener, 240)
         .expect("fail to accept agent command channel. TODO restart qemu");
     //let mut i_queue = input_queue::InputQueue::new();
-    
+
     agent_stream.set_read_timeout(Some(Duration::new(1, 0)))?;
     loop {
         current_loop += 1;
@@ -145,7 +145,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             let mut fuzz_counter = FUZZ_COUNTER.lock().unwrap();
             *fuzz_counter+=1;
         }
-        
+
         //TODO move to config
         if current_loop % 5000 == 0 {
             if let Err(e) = child.kill().await {
@@ -155,7 +155,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             child = execute_linux_vm(id).await;
             agent_stream = accept_or_crash(&agent_listener, 240)
                 .expect("fail to accept agent command channel. TODO restart qemu");
-    
+
             agent_stream.set_read_timeout(Some(Duration::new(1, 0)))?;
             current_loop = 0;
         }
