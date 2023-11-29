@@ -2,6 +2,9 @@ guest_user_agent/a.out
 host_manager/target
 host_manager/Cargo.lock
 proxy_for_mutator/a.out
+coverage_to_html/target
+coverage_to_html/tmp/*
+coverage_to_html/source_lines.txt
 vm
 workdir
 vm.zip
