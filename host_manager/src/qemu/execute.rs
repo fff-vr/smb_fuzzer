@@ -5,17 +5,18 @@ use std::thread;
 use std::thread::JoinHandle;
 use tokio::process::Child;
 use tokio::process::Command;
-
+use crate::tools;
 pub async fn execute_linux_vm(i: u32) -> Child {
     // Create a unique command for each thread
-    let vm_path = format!("../vm/bullseye{}.img",i);
+    let vm_path = format!("{}/bullseye{}.img",tools::get_vm_path(),i);
+    println!("{}",vm_path);
     let child = Command::new("/usr/bin/qemu-system-x86_64")
         .arg("-m")
         .arg("4G")
         .arg("-smp")
         .arg("2,sockets=2,cores=1")
         .arg("-kernel")
-        .arg("/home/jjy/target/linux//arch/x86/boot/bzImage")
+        .arg(tools::get_kernel_path())
         .arg("-append")
         .arg("console=ttyS0 root=/dev/sda earlyprintk=serial net.ifnames=0")
         .arg("-drive")
