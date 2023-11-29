@@ -232,9 +232,9 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
     }
 }
 
-async fn fuzz(config : tools::Config) {
-    let instance_num =config.instance_num+1;
-    for i in 1 .. instance_num{
+async fn fuzz() {
+    let instance_num = tools::get_instance_num();
+    for i in 1 .. instance_num+1{
         tokio::spawn(fuzz_loop(i));
     }
     loop {
@@ -278,9 +278,9 @@ fn test() {}
 #[tokio::main]
 async fn main() {
     let args: Vec<String> = env::args().collect();
-    let config = tools::read_config("../config.json");
+    tools::initialize_global_config("../config.json".to_string());
     match args.get(1).map(String::as_str) {
-        Some("fuzz") => fuzz(config).await,
+        Some("fuzz") => fuzz().await,
         Some("reply") => {
             if let Some(reply_arg) = args.get(2) {
                 reply(reply_arg.to_string());
