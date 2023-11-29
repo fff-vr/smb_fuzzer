@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use std::collections::HashMap;
 use std::path::Path;
 fn main(){
-    //coverage_to_lines().unwrap();
+    coverage_to_lines().unwrap();
     lines_to_html().unwrap();
 }
 fn lines_to_html()->io::Result<()>{

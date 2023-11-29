@@ -44,7 +44,11 @@ fn convert_to_u64_vec(data: Vec<u8>) -> Vec<u64> {
                 // 리틀 엔디안으로 처리
                 val = val << 8 | byte as u64;
             }
-            val
+            if 0xffffffff80000000 < val{
+                val
+            }else{
+                0
+            }
         })
         .collect()
 }
