@@ -21,11 +21,11 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
 use std::collections::HashMap;
+
 lazy_static! {
     static ref GLOBAL_VEC: Mutex<Vec<u64>> = Mutex::new(Vec::new());
     static ref FUZZ_COUNTER: Mutex<u64> = Mutex::new(0);
 }
-
 fn add_unique_elements_to_global(va: Vec<u64>) -> u32 {
     let mut global_vec = GLOBAL_VEC.lock().unwrap();
     let mut new_count = 0;

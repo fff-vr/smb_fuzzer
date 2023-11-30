@@ -2,15 +2,7 @@ use debug_print::debug_print;
 use debug_print::debug_println;
 use std::fs::File;
 use std::io::{Read, Write};
-use std::sync::Mutex;
-use lazy_static::lazy_static;
 use std::fs::OpenOptions;
-#[derive(Serialize, Deserialize)]
-struct Config {
-    instance_num: u32,
-    kernel_path : String,
-    vm_path : String
-}
 
 pub fn hexdump(label: &str, data: &[u8]) {
     debug_println!("{}", label);
@@ -34,42 +26,6 @@ pub fn read_from_file(path: &str) -> std::io::Result<Vec<u8>> {
     let mut data = Vec::new();
     file.read_to_end(&mut data)?;
     Ok(data)
-}
-
-fn read_config(file_path: &str) -> Result<Config,serde_json::Error> {
-    let mut file = File::open(file_path).unwrap();
-    let mut contents = String::new();
-    file.read_to_string(&mut contents).unwrap();
-    serde_json::from_str(&contents)
-}
-pub fn initialize_global_config(config_path : String) {
-    let config = read_config(&config_path).expect("Failed to read config");
-    let mut global_config = GLOBAL_CONFIG.lock().unwrap();
-    *global_config = Some(config);
-}
-pub fn get_kernel_path()->String{
-    let config = GLOBAL_CONFIG.lock().unwrap();
-    if let Some(ref config) = *config {
-        config.kernel_path.clone()
-    } else {
-        panic!("can not get kernel path");
-    }
-}
-pub fn get_vm_path()->String{
-    let config = GLOBAL_CONFIG.lock().unwrap();
-    if let Some(ref config) = *config {
-        config.vm_path.clone()
-    } else {
-        panic!("can not get vm path");
-    }
-}
-pub fn get_instance_num()->u32{
-    let config = GLOBAL_CONFIG.lock().unwrap();
-    if let Some(ref config) = *config {
-        config.instance_num
-    } else {
-        panic!("can not get instance_num");
-    }
 }
 
 pub fn save_vec64_to_file(path : String,vector : Vec<u64>){
