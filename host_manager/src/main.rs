@@ -4,7 +4,6 @@ mod network;
 mod protocol;
 mod qemu;
 mod tools;
-use crate::input_queue::Fragments;
 use crate::mutator::input_queue::{self, InputQueue};
 use crate::mutator::smb3_mutate;
 use crate::qemu::execute::execute_linux_vm;
@@ -25,6 +24,7 @@ use std::time::{Duration, Instant};
 lazy_static! {
     static ref GLOBAL_VEC: Mutex<Vec<u64>> = Mutex::new(Vec::new());
     static ref FUZZ_COUNTER: Mutex<u64> = Mutex::new(0);
+    static ref INPUT_QUEUE : Mutex<InputQueue> = Mutex::new(mutator::input_queue::InputQueue::new());
 }
 fn add_unique_elements_to_global(va: Vec<u64>) -> u32 {
     let mut global_vec = GLOBAL_VEC.lock().unwrap();
@@ -135,7 +135,6 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
 
     let mut agent_stream = accept_or_crash(&agent_listener, 240)
         .expect("fail to accept agent command channel. TODO restart qemu");
-    let mut i_queue = mutator::input_queue::InputQueue::new();
     agent_stream.set_read_timeout(Some(Duration::new(1, 0)))?;
     loop {
         current_loop += 1;
@@ -187,10 +186,9 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
                             smb3_mutate::smb3_mutate_dumb(&mut respone_bytes, ratio as f32);
                         corpus.insert(packet_count, fragments);
                     }
-
-                    2 | 3 | 4 | 5 if i_queue.get_input(packet_count).len() != 0 => {
+                    2 | 3 | 4 | 5 if INPUT_QUEUE.lock().unwrap().get_input(packet_count).len() != 0 => {
                         let ratio: u32 = rand::thread_rng().gen_range(1..=20);
-                        let fragments = i_queue.get_input(packet_count);
+                        let fragments = INPUT_QUEUE.lock().unwrap().get_input(packet_count);
                         let fragments = smb3_mutate::smb3_mutate_coverage(
                             &mut respone_bytes,
                             ratio as f32,
@@ -208,6 +206,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             let new_cov_count = recv_coverage_from_agent(&mut agent_stream);
             debug_println!("recv coverage");
             if new_cov_count != 0 {
+                let mut i_queue = INPUT_QUEUE.lock().unwrap();
                 println!("get new cov {}, cov len ={}", new_cov_count,i_queue.len());
                 i_queue.insert_input(corpus);
             }
@@ -243,8 +242,6 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             //TODO analyze vm log
             //TODO save packet
         }
-
-        debug_println!("packet_count = {}", packet_record.len());
     }
 }
 
