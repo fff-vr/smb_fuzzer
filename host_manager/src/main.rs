@@ -45,7 +45,11 @@ fn convert_to_u64_vec(data: Vec<u8>) -> Vec<u64> {
                 // 리틀 엔디안으로 처리
                 val = val << 8 | byte as u64;
             }
-            val
+            if 0xffffffff80000000 < val{
+                val
+            }else{
+                0
+            }
         })
         .collect()
 }
@@ -134,7 +138,6 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
     let mut agent_stream = accept_or_crash(&agent_listener, 240)
         .expect("fail to accept agent command channel. TODO restart qemu");
     let mut i_queue = mutator::input_queue::InputQueue::new();
-    
     agent_stream.set_read_timeout(Some(Duration::new(1, 0)))?;
     loop {
         current_loop += 1;
@@ -142,7 +145,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             let mut fuzz_counter = FUZZ_COUNTER.lock().unwrap();
             *fuzz_counter+=1;
         }
-        
+
         //TODO move to config
         if current_loop % 5000 == 0 {
             if let Err(e) = child.kill().await {
@@ -152,7 +155,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             child = execute_linux_vm(id).await;
             agent_stream = accept_or_crash(&agent_listener, 240)
                 .expect("fail to accept agent command channel. TODO restart qemu");
-    
+
             agent_stream.set_read_timeout(Some(Duration::new(1, 0)))?;
             current_loop = 0;
         }
@@ -208,7 +211,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             smb_server.shutdown(Shutdown::Both).unwrap();
             client_stream.shutdown(Shutdown::Both).unwrap();
         } else {
-            println!("accept timeout from agent. it look like crash. Let's check vm log");
+            println!("accept timeout from agent. it look like crash. t's check vm log");
 
             if let Err(e) = child.kill().await {
                 eprintln!("fail to kill qemu. {}", e);
@@ -237,6 +240,8 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             //TODO analyze vm log
             //TODO save packet
         }
+
+        debug_println!("packet_count = {}", packet_record.len());
     }
 }
 
@@ -246,6 +251,10 @@ async fn fuzz() {
         tokio::spawn(fuzz_loop(i));
     }
     loop {
+        {
+            let global_vec = GLOBAL_VEC.lock().unwrap();
+            tools::save_vec64_to_file("../coverage.txt".to_string(),global_vec.to_vec());
+        }
         thread::sleep(Duration::from_secs(60));
     }
 }

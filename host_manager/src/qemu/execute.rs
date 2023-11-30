@@ -22,7 +22,7 @@ pub async fn execute_linux_vm(i: u32) -> Child {
         .arg("-drive")
         .arg(format!("file={}",vm_path))
         .arg("-net")
-        .arg("user,host=10.0.2.10")
+        .arg("user,host=10.0.2.10,hostfwd=tcp:0.0.0.0:10021-:22")
         .arg("-net")
         .arg("nic,model=virtio")
         .arg("-enable-kvm")
