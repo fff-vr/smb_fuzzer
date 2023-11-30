@@ -150,7 +150,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             }
             println!("restart vm");
             child = execute_linux_vm(id).await;
-            agent_stream = accept_or_crash(&agent_listener, 240)
+            agent_stream = accept_or_crash(&agent_listener, 60 * 6)
                 .expect("fail to accept agent command channel. TODO restart qemu");
 
             agent_stream.set_read_timeout(Some(Duration::new(1, 0)))?;
@@ -160,7 +160,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
         //TODO Recv one byte from agent. and check crash here
         send_command_to_agent(&mut agent_stream);
 
-        if let Some(mut client_stream) = accept_or_crash(&proxy_listener, 30) {
+        if let Some(mut client_stream) = accept_or_crash(&proxy_listener, 60) {
             debug_println!("accpet client");
             let mut smb_server = TcpStream::connect("127.0.0.1:445").unwrap();
             client_stream.set_read_timeout(Some(Duration::new(1, 0)))?;

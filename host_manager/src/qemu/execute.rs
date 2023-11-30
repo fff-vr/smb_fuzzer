@@ -11,7 +11,7 @@ pub async fn execute_linux_vm(i: u32) -> Child {
     let vm_path = format!("{}/bullseye{}.img", config::get_vm_path(), i);
     let child = Command::new("/usr/bin/qemu-system-x86_64")
         .arg("-m")
-        .arg("4G")
+        .arg("2G")
         .arg("-smp")
         .arg("1,sockets=1,cores=1")
         .arg("-kernel")
