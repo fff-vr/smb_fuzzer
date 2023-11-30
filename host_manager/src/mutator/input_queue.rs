@@ -37,6 +37,9 @@ impl InputQueue {
             queue: Default::default(),
         }
     }
+    pub fn len(&self)->usize{
+        self.queue.len()
+    }
 
     pub fn get_input(&mut self, packet_count: u32) -> Fragments {
         let valid_corquses: VecDeque<&HashMap<u32, Fragments>> = self

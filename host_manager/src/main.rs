@@ -208,7 +208,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             let new_cov_count = recv_coverage_from_agent(&mut agent_stream);
             debug_println!("recv coverage");
             if new_cov_count != 0 {
-                println!("get new cov {}", new_cov_count);
+                println!("get new cov {}, cov len ={}", new_cov_count,i_queue.len());
                 i_queue.insert_input(corpus);
             }
             smb_server.shutdown(Shutdown::Both).unwrap();
