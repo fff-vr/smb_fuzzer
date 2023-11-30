@@ -45,7 +45,7 @@ impl InputQueue {
         let valid_corquses: VecDeque<&HashMap<u32, Fragments>> = self
             .queue
             .iter()
-            .filter(|&hashmap| hashmap.contains_key(&12))
+            .filter(|&hashmap| hashmap.contains_key(&packet_count))
             .collect();
         match valid_corquses.len(){
             0=> Fragments::new(),
