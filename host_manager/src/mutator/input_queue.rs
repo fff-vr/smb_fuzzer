@@ -49,10 +49,10 @@ impl InputQueue {
             .collect();
         match valid_corquses.len(){
             0=> Fragments::new(),
-            1=>valid_corquses[0][&packet_count].clone(),
+            1=> valid_corquses[0].get(&packet_count).expect("fail to get fragment").clone(),
             _=>{
                 let idx = rand::thread_rng().gen_range(0..valid_corquses.len()-1);
-                valid_corquses[idx][&packet_count].clone()
+                valid_corquses[idx].get(&packet_count).expect("fail to get fragment").clone()
             }
         }
         
