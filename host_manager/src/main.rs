@@ -1,26 +1,26 @@
+mod config;
 mod mutator;
 mod network;
 mod protocol;
 mod qemu;
 mod tools;
-mod config;
 use crate::input_queue::Fragments;
-use crate::mutator::input_queue::{InputQueue, self};
-use std::fs;
-use std::path::Path;
+use crate::mutator::input_queue::{self, InputQueue};
 use crate::mutator::smb3_mutate;
 use crate::qemu::execute::execute_linux_vm;
 use debug_print::debug_println;
 use lazy_static::lazy_static;
 use rand::Rng;
+use std::collections::HashMap;
 use std::env;
+use std::fs;
 use std::io::{self, ErrorKind};
 use std::net::Shutdown;
 use std::net::{TcpListener, TcpStream};
+use std::path::Path;
 use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
-use std::collections::HashMap;
 
 lazy_static! {
     static ref GLOBAL_VEC: Mutex<Vec<u64>> = Mutex::new(Vec::new());
@@ -45,9 +45,9 @@ fn convert_to_u64_vec(data: Vec<u8>) -> Vec<u64> {
                 // 리틀 엔디안으로 처리
                 val = val << 8 | byte as u64;
             }
-            if 0xffffffff80000000 < val{
+            if 0xffffffff80000000 < val {
                 val
-            }else{
+            } else {
                 0
             }
         })
@@ -74,9 +74,7 @@ fn recv_coverage_from_agent(agent_listener: &mut TcpStream) -> u32 {
             debug_println!("[recv_coverage_from_agent] end");
             add_unique_elements_to_global(coverage_vector)
         }
-        Err(_) => {
-            0
-        }
+        Err(_) => 0,
     }
 }
 fn send_data(smb_socket: &mut TcpStream, data: Vec<u8>) -> io::Result<()> {
@@ -127,8 +125,8 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
     let mut child = execute_linux_vm(id).await;
 
     let mut current_loop: u64 = 0;
-    let agent_address = format!("0.0.0.0:{}",12345+id*2);
-    let proxy_address = format!("0.0.0.0:{}",12346+id*2);
+    let agent_address = format!("0.0.0.0:{}", 12345 + id * 2);
+    let proxy_address = format!("0.0.0.0:{}", 12346 + id * 2);
 
     let agent_listener = TcpListener::bind(agent_address).unwrap();
     let proxy_listener = TcpListener::bind(proxy_address).unwrap();
@@ -143,7 +141,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
         current_loop += 1;
         {
             let mut fuzz_counter = FUZZ_COUNTER.lock().unwrap();
-            *fuzz_counter+=1;
+            *fuzz_counter += 1;
         }
 
         //TODO move to config
@@ -162,14 +160,14 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
 
         //TODO Recv one byte from agent. and check crash here
         send_command_to_agent(&mut agent_stream);
-        
+
         if let Some(mut client_stream) = accept_or_crash(&proxy_listener, 30) {
             debug_println!("accpet client");
             let mut smb_server = TcpStream::connect("127.0.0.1:445").unwrap();
             client_stream.set_read_timeout(Some(Duration::new(1, 0)))?;
             smb_server.set_read_timeout(Some(Duration::new(1, 0)))?;
-            let mut packet_count =0 ;
-            let mut corpus =  HashMap::new();
+            let mut packet_count = 0;
+            let mut corpus = HashMap::new();
             loop {
                 //TODO check socket OK
                 debug_println!("start recv ori data");
@@ -183,21 +181,26 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
                 let mut respone_bytes = recv_data(&mut smb_server);
 
                 match rand::thread_rng().gen_range(1..=20) {
-                    1=>{
-                        let ratio : u32 = rand::thread_rng().gen_range(1..=20);
-                        let fragments = smb3_mutate::smb3_mutate_dumb(&mut respone_bytes, ratio as f32);
-                        corpus.insert(packet_count,fragments);
-                    },
-                    
-                    2|3|4|5 if i_queue.get_input(packet_count).len()!=0 =>{
-                        let ratio : u32 = rand::thread_rng().gen_range(1..=20);
+                    1 => {
+                        let ratio: u32 = rand::thread_rng().gen_range(1..=20);
+                        let fragments =
+                            smb3_mutate::smb3_mutate_dumb(&mut respone_bytes, ratio as f32);
+                        corpus.insert(packet_count, fragments);
+                    }
+
+                    2 | 3 | 4 | 5 if i_queue.get_input(packet_count).len() != 0 => {
+                        let ratio: u32 = rand::thread_rng().gen_range(1..=20);
                         let fragments = i_queue.get_input(packet_count);
-                        let fragments = smb3_mutate::smb3_mutate_coverage(&mut respone_bytes, ratio as f32, fragments);
-                        corpus.insert(packet_count,fragments);
-                    },
-                    _=> ()//no mutate
+                        let fragments = smb3_mutate::smb3_mutate_coverage(
+                            &mut respone_bytes,
+                            ratio as f32,
+                            fragments,
+                        );
+                        corpus.insert(packet_count, fragments);
+                    }
+                    _ => (), //no mutate
                 }
-                packet_count+=1;
+                packet_count += 1;
                 debug_println!("send to mutated data");
                 send_data(&mut client_stream, respone_bytes).unwrap();
             }
@@ -216,7 +219,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             if let Err(e) = child.kill().await {
                 eprintln!("fail to kill qemu. {}", e);
             }
-            let source_path = format!("../workdir/test{}.txt",id);
+            let source_path = format!("../workdir/test{}.txt", id);
             let mut target_path = Path::new("../workdir/save/log.txt").to_path_buf();
 
             let mut counter = 1;
@@ -226,8 +229,8 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             }
 
             // 파일 이동
-            println!("{}",source_path);
-            println!("{}",target_path.display());
+            println!("{}", source_path);
+            println!("{}", target_path.display());
 
             fs::rename(source_path, &target_path).unwrap();
 
@@ -247,13 +250,13 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
 
 async fn fuzz() {
     let instance_num = config::get_instance_num();
-    for i in 1 .. instance_num+1{
+    for i in 1..instance_num + 1 {
         tokio::spawn(fuzz_loop(i));
     }
     loop {
         {
             let global_vec = GLOBAL_VEC.lock().unwrap();
-            tools::save_vec64_to_file("../coverage.txt".to_string(),global_vec.to_vec());
+            tools::save_vec64_to_file("../coverage.txt".to_string(), global_vec.to_vec());
         }
         thread::sleep(Duration::from_secs(60));
     }
@@ -263,7 +266,6 @@ fn reply(input_file: String) {
         Ok(data) => data,
         Err(e) => panic!("Failed to read file: {}", e),
     };
-
 
     let agent_listener = TcpListener::bind("0.0.0.0:8081").unwrap();
     let smb_listener = TcpListener::bind("0.0.0.0:8080").unwrap();

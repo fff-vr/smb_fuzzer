@@ -1,8 +1,8 @@
 use debug_print::debug_print;
 use debug_print::debug_println;
 use std::fs::File;
-use std::io::{Read, Write};
 use std::fs::OpenOptions;
+use std::io::{Read, Write};
 
 pub fn hexdump(label: &str, data: &[u8]) {
     debug_println!("{}", label);
@@ -28,13 +28,14 @@ pub fn read_from_file(path: &str) -> std::io::Result<Vec<u8>> {
     Ok(data)
 }
 
-pub fn save_vec64_to_file(path : String,vector : Vec<u64>){
+pub fn save_vec64_to_file(path: String, vector: Vec<u64>) {
     let mut file = OpenOptions::new()
         .write(true)
         .append(true) // append를 true로 설정
         .create(true) // 파일이 존재하지 않을 경우 새로 생성
-        .open(path).unwrap();
-    for address in vector{
-        writeln!(file,"0x{:X}",address).unwrap();
+        .open(path)
+        .unwrap();
+    for address in vector {
+        writeln!(file, "0x{:X}", address).unwrap();
     }
 }
