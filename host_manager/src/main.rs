@@ -22,12 +22,12 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 lazy_static! {
-    static ref GLOBAL_VEC: Mutex<Vec<u64>> = Mutex::new(Vec::new());
+    static ref COVERAGE: Mutex<Vec<u64>> = Mutex::new(Vec::new());
     static ref FUZZ_COUNTER: Mutex<u64> = Mutex::new(0);
     static ref INPUT_QUEUE : Mutex<InputQueue> = Mutex::new(mutator::input_queue::InputQueue::new());
 }
 fn add_unique_elements_to_global(va: Vec<u64>) -> u32 {
-    let mut global_vec = GLOBAL_VEC.lock().unwrap();
+    let mut global_vec = COVERAGE.lock().unwrap();
     let mut new_count = 0;
     for item in va {
         if !global_vec.contains(&item) {
@@ -179,7 +179,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
                 send_data(&mut smb_server, request_bytes).unwrap();
                 let mut respone_bytes = recv_data(&mut smb_server);
 
-                match rand::thread_rng().gen_range(1..=20) {
+                match rand::thread_rng().gen_range(1..=40) {
                     1 => {
                         let ratio: u32 = rand::thread_rng().gen_range(1..=20);
                         let fragments =
@@ -213,7 +213,6 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             smb_server.shutdown(Shutdown::Both).unwrap();
             client_stream.shutdown(Shutdown::Both).unwrap();
         } else {
-            println!("accept timeout from agent. it look like crash. t's check vm log");
 
             if let Err(e) = child.kill().await {
                 eprintln!("fail to kill qemu. {}", e);
@@ -228,8 +227,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             }
 
             // 파일 이동
-            println!("{}", source_path);
-            println!("{}", target_path.display());
+            println!("save crash log => {}", target_path.display());
 
             fs::rename(source_path, &target_path).unwrap();
 
@@ -251,9 +249,15 @@ async fn fuzz() {
         tokio::spawn(fuzz_loop(i));
     }
     loop {
+        let mut  last_coverage=vec![];
         {
-            let global_vec = GLOBAL_VEC.lock().unwrap();
-            tools::save_vec64_to_file("../coverage.txt".to_string(), global_vec.to_vec());
+            let coverage_vec = COVERAGE.lock().unwrap();
+            let new_coverage: Vec<u64> = coverage_vec.clone().into_iter().filter(|&x| !last_coverage.contains(&x)).collect();
+            let mut fuzz_counter = FUZZ_COUNTER.lock().unwrap();
+            tools::save_vec64_to_file("../coverage.txt".to_string(), new_coverage.to_vec());
+            println!("fuzz loop = {}",fuzz_counter);
+            last_coverage = coverage_vec.clone();
+        
         }
         thread::sleep(Duration::from_secs(60));
     }

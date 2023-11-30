@@ -47,11 +47,15 @@ impl InputQueue {
             .iter()
             .filter(|&hashmap| hashmap.contains_key(&12))
             .collect();
-        if valid_corquses.len() == 0 {
-            return Fragments::new();
+        match valid_corquses.len(){
+            0=> Fragments::new(),
+            1=>valid_corquses[0][&packet_count].clone(),
+            _=>{
+                let idx = rand::thread_rng().gen_range(0..valid_corquses.len()-1);
+                valid_corquses[idx][&packet_count].clone()
+            }
         }
-        let idx = rand::thread_rng().gen_range(0..valid_corquses.len());
-        valid_corquses[idx][&packet_count].clone()
+        
     }
     pub fn insert_input(&mut self, new_input: HashMap<u32, Fragments>) {
         self.queue.push_back(new_input);

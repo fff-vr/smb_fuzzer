@@ -9,7 +9,6 @@ use tokio::process::Command;
 pub async fn execute_linux_vm(i: u32) -> Child {
     // Create a unique command for each thread
     let vm_path = format!("{}/bullseye{}.img", config::get_vm_path(), i);
-    println!("{}", vm_path);
     let child = Command::new("/usr/bin/qemu-system-x86_64")
         .arg("-m")
         .arg("4G")
