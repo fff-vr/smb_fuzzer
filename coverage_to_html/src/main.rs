@@ -12,7 +12,7 @@ fn main(){
 }
 fn lines_to_html()->io::Result<()>{
     let data_file_path = "source_lines.txt";
-   let mut line_numbers = HashMap::new();
+    let mut line_numbers = HashMap::new();
 
     let file = File::open(data_file_path)?;
     let reader = BufReader::new(file);
@@ -20,40 +20,41 @@ fn lines_to_html()->io::Result<()>{
     for line in reader.lines() {
         let line = line?;
         let parts: Vec<&str> = line.split(':').collect();
-        if parts.len() == 2 {
-            let file_path = parts[0];
-            let line_number: usize = parts[1].parse().unwrap_or(0);
-            line_numbers.insert(file_path.to_string(), line_number);
+        if parts.len() >= 2 {
+            let file_path = parts[0].to_string();
+            let line_number_part = parts[1].split_whitespace().next().unwrap_or("0");
+            let line_number: usize = line_number_part.parse().unwrap_or(0);
+            line_numbers.entry(file_path).or_insert_with(Vec::new).push(line_number);
         }
     }
 
-    for (file_path, line_number) in line_numbers {
-        println!("process {}",file_path);
+    for (file_path, lines) in line_numbers {
 
         match File::open(&file_path) {
             Ok(file) => {
+
                 let new_path = &file_path.replace("/home/jjy/target/", "./");
                 let path = Path::new(&new_path);
+                let html_file_path = path.with_extension("html");
                 if let Some(dir) = path.parent() {
                     // 디렉토리가 존재하지 않으면 생성
                     fs::create_dir_all(dir)?;
                 }
-                let html_file_path = path.with_extension("html");
-
+                println!("save at {}",html_file_path.display());
                 let mut html_file = File::create(&html_file_path)?;
-                writeln!(html_file, "<html><body><pre>")?;
+                writeln!(html_file, "<html><body><pre><code>")?;
 
                 let reader = BufReader::new(file);
                 for (index, line) in reader.lines().enumerate() {
                     let line = line?;
-                    if index + 1 == line_number {
-                        writeln!(html_file, "<span style='background-color: red;'>{}</span>", line)?;
+                    if lines.contains(&(index + 1)) {
+                        writeln!(html_file, "<span style='background-color: red;'>{}</span>", html_escape(&line))?;
                     } else {
-                        writeln!(html_file, "{}", line)?;
+                        writeln!(html_file, "{}", html_escape(&line))?;
                     }
                 }
 
-                writeln!(html_file, "</pre></body></html>")?;
+                writeln!(html_file, "</code></pre></body></html>")?;
             },
             Err(_) => {
                 println!("Failed to open file: {}", file_path);
@@ -62,6 +63,15 @@ fn lines_to_html()->io::Result<()>{
     }
 
     Ok(())
+
+}
+// HTML 특수 문자를 이스케이프하는 함수
+fn html_escape(input: &str) -> String {
+    input.replace("&", "&amp;")
+         .replace("<", "&lt;")
+         .replace(">", "&gt;")
+         .replace("\"", "&quot;")
+         .replace("'", "&#39;")
 }
 fn coverage_to_lines() -> io::Result<()> {
     let chunk_size = 3000; // 청크 크기를 정의합니다.
