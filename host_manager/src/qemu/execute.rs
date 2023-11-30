@@ -13,7 +13,7 @@ pub async fn execute_linux_vm(i: u32) -> Child {
         .arg("-m")
         .arg("4G")
         .arg("-smp")
-        .arg("2,sockets=2,cores=1")
+        .arg("1,sockets=1,cores=1")
         .arg("-kernel")
         .arg(config::get_kernel_path())
         .arg("-append")

@@ -2,12 +2,12 @@ use rand::Rng;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct Fragment {
     pub offset: usize,
     pub value: u8,
 }
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct Fragments {
     datas: Vec<Fragment>,
 }
@@ -49,10 +49,14 @@ impl InputQueue {
             .collect();
         match valid_corquses.len(){
             0=> Fragments::new(),
-            1=> valid_corquses[0].get(&packet_count).expect("fail to get fragment").clone(),
+            1=> {
+                let corpus = valid_corquses[0];
+                corpus.get(&packet_count).expect("fail to get fragment").clone()
+            }
             _=>{
                 let idx = rand::thread_rng().gen_range(0..valid_corquses.len()-1);
-                valid_corquses[idx].get(&packet_count).expect("fail to get fragment").clone()
+                let corpus = valid_corquses[idx];
+                corpus.get(&packet_count).expect("fail to get fragment").clone()
             }
         }
         

@@ -217,6 +217,9 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             if let Err(e) = child.kill().await {
                 eprintln!("fail to kill qemu. {}", e);
             }
+            //wait for write test{}.txt
+            thread::sleep(Duration::from_secs(1));
+
             let source_path = format!("../workdir/test{}.txt", id);
             let mut target_path = Path::new("../workdir/save/log.txt").to_path_buf();
 

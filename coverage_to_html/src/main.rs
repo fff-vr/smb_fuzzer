@@ -34,8 +34,9 @@ fn lines_to_html()->io::Result<()>{
             Ok(file) => {
 
                 let new_path = &file_path.replace("/home/jjy/target/", "./");
+                let new_path = format!("{}.html",new_path);
                 let path = Path::new(&new_path);
-                let html_file_path = path.with_extension("html");
+                let html_file_path = path.clone();
                 if let Some(dir) = path.parent() {
                     // 디렉토리가 존재하지 않으면 생성
                     fs::create_dir_all(dir)?;
