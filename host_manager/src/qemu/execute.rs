@@ -1,9 +1,5 @@
 use crate::config;
 use std::process::Stdio;
-use std::sync::mpsc;
-use std::sync::mpsc::Sender;
-use std::thread;
-use std::thread::JoinHandle;
 use tokio::process::Child;
 use tokio::process::Command;
 pub async fn execute_linux_vm(i: u32) -> Child {
@@ -11,7 +7,7 @@ pub async fn execute_linux_vm(i: u32) -> Child {
     let vm_path = format!("{}/bullseye{}.img", config::get_vm_path(), i);
     let child = Command::new("/usr/bin/qemu-system-x86_64")
         .arg("-m")
-        .arg("2G")
+        .arg(config::get_ram())
         .arg("-smp")
         .arg("1,sockets=1,cores=1")
         .arg("-kernel")

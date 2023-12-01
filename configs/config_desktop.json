@@ -1,0 +1,6 @@
+{
+    "kernel_path": "/home/jjy/target/linux/arch/x86/boot/bzImage",
+    "vm_path" : "../vm",
+    "instance_num": 32
+}
+

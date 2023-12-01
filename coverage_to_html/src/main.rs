@@ -3,12 +3,17 @@ use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader, Write};
 use std::process::Command;
-use std::sync::Mutex;
 use std::collections::HashMap;
 use std::path::Path;
 fn main(){
-    coverage_to_lines().unwrap();
-    lines_to_html().unwrap();
+    let args: Vec<String> = std::env::args().collect();
+    if let Some(coverage_path) = args.get(1) {
+        coverage_to_lines(coverage_path.to_string()).unwrap();
+        lines_to_html().unwrap();
+    } else {
+        println!("no coverage path");
+        std::process::exit(1);
+    }
 }
 fn lines_to_html()->io::Result<()>{
     let data_file_path = "source_lines.txt";
@@ -74,9 +79,9 @@ fn html_escape(input: &str) -> String {
          .replace("\"", "&quot;")
          .replace("'", "&#39;")
 }
-fn coverage_to_lines() -> io::Result<()> {
+fn coverage_to_lines(coverage_path : String) -> io::Result<()> {
     let chunk_size = 3000; // 청크 크기를 정의합니다.
-    let addresses: Vec<_> = BufReader::new(File::open("../coverage.txt")?)
+    let addresses: Vec<_> = BufReader::new(File::open(coverage_path)?)
         .lines()
         .filter_map(Result::ok)
         .collect();
