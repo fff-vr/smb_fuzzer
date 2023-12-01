@@ -69,4 +69,9 @@ impl InputQueue {
     pub fn insert_input(&mut self, new_input: HashMap<u32, Fragments>) {
         self.queue.push_back(new_input);
     }
+    pub fn remove_fragment(&mut self, target: u32) {
+        if let Some(position) = self.queue.iter().position(|hm| hm.contains_key(&target)) {
+            self.queue.remove(position);
+        }
+    }
 }
