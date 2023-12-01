@@ -1,4 +1,4 @@
-KERNEL=/home/jjy/target/linux/
+KERNEL=/home/$USER/target/linux/
 IMAGE=./tools
 qemu-system-x86_64 \
 	-m 4G \

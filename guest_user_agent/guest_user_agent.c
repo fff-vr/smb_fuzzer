@@ -181,6 +181,7 @@ int main(int argc, char **argv)
             if(check_thread_exists("cifsd")==0){
                 break;
             }
+            usleep(10000);
         }
         start_coverage(fd,cover);
         int ret =0;

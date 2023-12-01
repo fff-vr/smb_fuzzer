@@ -1,31 +1,34 @@
-mod input_queue;
+mod config;
 mod mutator;
 mod network;
 mod protocol;
 mod qemu;
 mod tools;
-use std::fs;
-use std::path::Path;
-use crate::mutator::smb1_mutate;
-use crate::protocol::smb3::{self, parse_smb2_header};
+use crate::mutator::input_queue::{self, InputQueue};
+use crate::mutator::smb3_mutate;
 use crate::qemu::execute::execute_linux_vm;
-use debug_print::{debug_eprintln, debug_println};
+use debug_print::debug_println;
 use lazy_static::lazy_static;
 use rand::Rng;
+use std::collections::HashMap;
 use std::env;
+use std::fmt::Alignment;
+use std::fs;
 use std::io::{self, ErrorKind};
 use std::net::Shutdown;
 use std::net::{TcpListener, TcpStream};
+use std::path::Path;
 use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
-use tokio::process::Child;
-lazy_static! {
-    static ref GLOBAL_VEC: Mutex<Vec<u64>> = Mutex::new(Vec::new());
-}
 
+lazy_static! {
+    static ref COVERAGE: Mutex<Vec<u64>> = Mutex::new(Vec::new());
+    static ref FUZZ_COUNTER: Mutex<u64> = Mutex::new(0);
+    static ref INPUT_QUEUE: Mutex<InputQueue> = Mutex::new(mutator::input_queue::InputQueue::new());
+}
 fn add_unique_elements_to_global(va: Vec<u64>) -> u32 {
-    let mut global_vec = GLOBAL_VEC.lock().unwrap();
+    let mut global_vec = COVERAGE.lock().unwrap();
     let mut new_count = 0;
     for item in va {
         if !global_vec.contains(&item) {
@@ -43,14 +46,17 @@ fn convert_to_u64_vec(data: Vec<u8>) -> Vec<u64> {
                 // 리틀 엔디안으로 처리
                 val = val << 8 | byte as u64;
             }
-            val
+            if 0xffffffff80000000 < val {
+                val
+            } else {
+                0
+            }
         })
         .collect()
 }
-fn send_command_to_agent(agent_listener: &mut TcpStream) -> bool {
+fn send_command_to_agent(agent_listener: &mut TcpStream, command: u8) -> bool {
     debug_println!("[send_command_to_agent] start");
-    let start_execute = b"\x12";
-    match network::write_to_socket(agent_listener, start_execute.to_vec()) {
+    match network::write_to_socket(agent_listener, vec![command]) {
         Ok(_) => (),
         Err(e) => {
             panic!("Failed to send start execute: {}", e);
@@ -68,9 +74,7 @@ fn recv_coverage_from_agent(agent_listener: &mut TcpStream) -> u32 {
             debug_println!("[recv_coverage_from_agent] end");
             add_unique_elements_to_global(coverage_vector)
         }
-        Err(_) => {
-            0
-        }
+        Err(_) => 0,
     }
 }
 fn send_data(smb_socket: &mut TcpStream, data: Vec<u8>) -> io::Result<()> {
@@ -102,6 +106,12 @@ fn accept_or_crash(listener: &TcpListener, wait_second: u64) -> Option<TcpStream
     loop {
         match listener.accept() {
             Ok((_socket, _addr)) => {
+                _socket
+                    .set_read_timeout(Some(Duration::new(5, 0)))
+                    .expect("fail to set timeout");
+                _socket
+                    .set_write_timeout(Some(Duration::new(5, 0)))
+                    .expect("fail to set timeout");
                 return Some(_socket);
             }
             Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
@@ -120,10 +130,9 @@ fn accept_or_crash(listener: &TcpListener, wait_second: u64) -> Option<TcpStream
 async fn fuzz_loop(id: u32) -> io::Result<()> {
     let mut child = execute_linux_vm(id).await;
 
-    let mut loop_count: u64 = 0;
     let mut current_loop: u64 = 0;
-    let agent_address = format!("0.0.0.0:{}",12345+id*2);
-    let proxy_address = format!("0.0.0.0:{}",12346+id*2);
+    let agent_address = format!("0.0.0.0:{}", 12345 + id * 2);
+    let proxy_address = format!("0.0.0.0:{}", 12346 + id * 2);
 
     let agent_listener = TcpListener::bind(agent_address).unwrap();
     let proxy_listener = TcpListener::bind(proxy_address).unwrap();
@@ -132,39 +141,34 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
 
     let mut agent_stream = accept_or_crash(&agent_listener, 240)
         .expect("fail to accept agent command channel. TODO restart qemu");
-    //let mut i_queue = input_queue::InputQueue::new();
-    
-    agent_stream.set_read_timeout(Some(Duration::new(1, 0)))?;
     loop {
-        loop_count += 1;
         current_loop += 1;
-        if loop_count % 1000 == 0 {
-            println!("fuzz loop = {}", loop_count);
-            //i_queue.print_corpus_count();
+        {
+            let mut fuzz_counter = FUZZ_COUNTER.lock().unwrap();
+            *fuzz_counter += 1;
         }
 
-        if current_loop % 5000 == 0 {
+        if current_loop % config::get_max_loop() == 0 {
             if let Err(e) = child.kill().await {
                 eprintln!("fail to kill qemu. {}", e);
             }
             println!("restart vm");
             child = execute_linux_vm(id).await;
-            agent_stream = accept_or_crash(&agent_listener, 240)
+            agent_stream = accept_or_crash(&agent_listener, 60 * 6)
                 .expect("fail to accept agent command channel. TODO restart qemu");
-    
-            agent_stream.set_read_timeout(Some(Duration::new(1, 0)))?;
+
             current_loop = 0;
         }
 
         //TODO Recv one byte from agent. and check crash here
-        send_command_to_agent(&mut agent_stream);
-
-        let mut packet_record = vec![];
+        let command: u8 = rand::thread_rng().gen_range(0..2);
+        send_command_to_agent(&mut agent_stream, command);
         if let Some(mut client_stream) = accept_or_crash(&proxy_listener, 30) {
             debug_println!("accpet client");
             let mut smb_server = TcpStream::connect("127.0.0.1:445").unwrap();
-            client_stream.set_read_timeout(Some(Duration::new(1, 0)))?;
-            smb_server.set_read_timeout(Some(Duration::new(1, 0)))?;
+            smb_server.set_read_timeout(Some(Duration::new(3, 0)))?;
+            let mut packet_count = 0;
+            let mut corpus = HashMap::new();
             loop {
                 //TODO check socket OK
                 debug_println!("start recv ori data");
@@ -175,37 +179,52 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
                 }
                 debug_println!("success recv request_bytes = {}", request_bytes.len());
                 send_data(&mut smb_server, request_bytes).unwrap();
-                let respone_bytes = recv_data(&mut smb_server);
-                debug_println!("packet_count = {}", packet_record.len());
-
-                //disable queue mode
-                let mut corpus = respone_bytes;
-
-                if rand::thread_rng().gen_range(1..=5) == 1 {
-                    smb1_mutate::smb1_mutate(&mut corpus, 10.0);
+                let mut respone_bytes = recv_data(&mut smb_server);
+                match rand::thread_rng().gen_range(1..=40) {
+                    1 => {
+                        let ratio: u32 = rand::thread_rng().gen_range(1..=20);
+                        let fragments =
+                            smb3_mutate::smb3_mutate_dumb(&mut respone_bytes, ratio as f32);
+                        corpus.insert(packet_count, fragments);
+                    }
+                    2 | 3 | 4 | 5
+                        if INPUT_QUEUE.lock().unwrap().get_input(packet_count).len() != 0 =>
+                    {
+                        let ratio: u32 = rand::thread_rng().gen_range(1..=20);
+                        let fragments = INPUT_QUEUE.lock().unwrap().get_input(packet_count);
+                        let fragments = smb3_mutate::smb3_mutate_coverage(
+                            &mut respone_bytes,
+                            ratio as f32,
+                            fragments,
+                            packet_count,
+                        );
+                        corpus.insert(packet_count, fragments);
+                    }
+                    _ => (), //no mutate
                 }
-
-                packet_record.push(corpus.clone());
+                packet_count += 1;
                 debug_println!("send to mutated data");
-                send_data(&mut client_stream, corpus).unwrap();
+                send_data(&mut client_stream, respone_bytes).unwrap();
             }
             debug_println!("waiting for coverage");
             let new_cov_count = recv_coverage_from_agent(&mut agent_stream);
             debug_println!("recv coverage");
             if new_cov_count != 0 {
-                println!("get new cov {}", new_cov_count);
-                //i_queue.insert_input(last_packet.clone());
+                let mut i_queue = INPUT_QUEUE.lock().unwrap();
+                println!("get new cov {}, cov len ={}", new_cov_count, i_queue.len());
+                i_queue.insert_input(corpus);
             }
-            smb_server.shutdown(Shutdown::Both).unwrap();
-            client_stream.shutdown(Shutdown::Both).unwrap();
         } else {
-            println!("accept timeout from agent. it look like crash. Let's check vm log");
-
+            //Mabye it is a fuzzer bug
+            debug_println!("vm crashed!");
             if let Err(e) = child.kill().await {
                 eprintln!("fail to kill qemu. {}", e);
             }
-            let source_path = format!("../workdir/test{}.txt",id);
-            let mut target_path = Path::new("../workdir/save/log.txt").to_path_buf();
+            //wait for write test{}.txt
+            thread::sleep(Duration::from_secs(1));
+
+            let source_path = format!("../workdir/test{}.txt", id);
+            let mut target_path = Path::new("../crashlog/log.txt").to_path_buf();
 
             let mut counter = 1;
             while target_path.exists() {
@@ -213,31 +232,39 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
                 counter += 1;
             }
 
-            // 파일 이동
-            println!("{}",source_path);
-            println!("{}",target_path.display());
+            println!("save crash log => {}", target_path.display());
 
             fs::rename(source_path, &target_path).unwrap();
 
             child = execute_linux_vm(id).await;
-            agent_stream = accept_or_crash(&agent_listener, 240)
+            agent_stream = accept_or_crash(&agent_listener, 360)
                 .expect("fail to accept agent command channel. TODO restart qemu");
-            agent_stream.set_read_timeout(Some(Duration::new(1, 0)))?;
-            println!("{:?}", packet_record);
             current_loop = 0;
-
-            //TODO analyze vm log
-            //TODO save packet
         }
     }
 }
 
 async fn fuzz() {
-    for i in 1..2{
+    tools::delete_file_if_exists("../coverage.txt").expect("fail to remove coverage");
+    let instance_num = config::get_instance_num();
+    for i in 1..instance_num + 1 {
         tokio::spawn(fuzz_loop(i));
     }
+    let mut last_coverage = vec![];
     loop {
-        thread::sleep(Duration::from_secs(60000));
+        {
+            let coverage_vec = COVERAGE.lock().unwrap();
+            let new_coverage: Vec<u64> = coverage_vec
+                .clone()
+                .into_iter()
+                .filter(|&x| !last_coverage.contains(&x))
+                .collect();
+            let fuzz_counter = FUZZ_COUNTER.lock().unwrap();
+            tools::save_vec64_to_file("../coverage.txt".to_string(), new_coverage.to_vec());
+            println!("fuzz loop = {}", fuzz_counter);
+            last_coverage = coverage_vec.clone();
+        }
+        thread::sleep(Duration::from_secs(60));
     }
 }
 fn reply(input_file: String) {
@@ -245,7 +272,6 @@ fn reply(input_file: String) {
         Ok(data) => data,
         Err(e) => panic!("Failed to read file: {}", e),
     };
-
 
     let agent_listener = TcpListener::bind("0.0.0.0:8081").unwrap();
     let smb_listener = TcpListener::bind("0.0.0.0:8080").unwrap();
@@ -258,7 +284,7 @@ fn reply(input_file: String) {
     println!("Server listening on port 8080");
 
     //TODO Recv one byte from agent. and check crash here
-    send_command_to_agent(&mut agent_stream);
+    send_command_to_agent(&mut agent_stream, 0);
 
     if let Some(mut stream) = accept_or_crash(&smb_listener, 60) {
         let _ = recv_data(&mut stream);
@@ -273,11 +299,16 @@ fn test() {}
 #[tokio::main]
 async fn main() {
     let args: Vec<String> = env::args().collect();
-
+    if let Some(config_path) = args.get(2) {
+        config::initialize_global_config(config_path.to_string());
+    } else {
+        println!("config path");
+        std::process::exit(1);
+    };
     match args.get(1).map(String::as_str) {
         Some("fuzz") => fuzz().await,
         Some("reply") => {
-            if let Some(reply_arg) = args.get(2) {
+            if let Some(reply_arg) = args.get(3) {
                 reply(reply_arg.to_string());
             } else {
                 println!("No additional argument provided for reply");

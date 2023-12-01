@@ -1,0 +1,127 @@
+[   58.367533][ T7918] WARNING: CPU: 0 PID: 7918 at fs/smb/client/connect.c:1616 cifs_put_tcp_session+0x495/0x550
+[   58.368654][ T7918] Modules linked in:
+[   58.369133][ T7918] CPU: 0 PID: 7918 Comm: a.out Not tainted 6.7.0-rc2-gbc9807868dfa-dirty #18
+[   58.370209][ T7918] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.15.0-1 04/01/2014
+[   58.371753][ T7918] RIP: 0010:cifs_put_tcp_session+0x495/0x550
+[   58.372885][ T7918] Code: 00 00 00 4c 89 f7 e8 da 25 c2 01 e9 8e fc ff ff e8 80 f0 f0 fe 31 f6 48 89 df e8 76 fb ff ff e9 ff fd ff ff e8 6c f0 f0 fe 90 <0f> 0b 90 e9 db fb ff ff e8 0e 66 46 ff e9 a1 fb ff ff e8 24 66 46
+[   58.377876][ T7918] RSP: 0018:ffffc9000406fa40 EFLAGS: 00010246
+[   58.378589][ T7918] RAX: 0000000000010000 RBX: ffff8880239ce000 RCX: ffffc90002ab1000
+[   58.379321][ T7918] RDX: 0000000000010000 RSI: ffffffff82953fe4 RDI: 0000000000000005
+[   58.380110][ T7918] RBP: 00000000ffffffff R08: 0000000000000005 R09: 0000000000000000
+[   58.380871][ T7918] R10: 00000000ffffffff R11: 0000000000000000 R12: 0000000000000000
+[   58.381658][ T7918] R13: 0000000000000001 R14: 00000000fffffffe R15: 0000000000000001
+[   58.382413][ T7918] FS:  00007f333444b540(0000) GS:ffff888063a00000(0000) knlGS:0000000000000000
+[   58.383241][ T7918] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[   58.383985][ T7918] CR2: 00007f7ee3a73b80 CR3: 000000002c016000 CR4: 00000000000006f0
+[   58.384906][ T7918] Call Trace:
+[   58.385243][ T7918]  <TASK>
+[   58.385538][ T7918]  ? show_regs+0x96/0xa0
+[   58.385983][ T7918]  ? __warn+0xe6/0x390
+[   58.386713][ T7918]  ? cifs_put_tcp_session+0x495/0x550
+[   58.387911][ T7918]  ? report_bug+0x2dd/0x500
+[   58.389540][ T7918]  ? cifs_put_tcp_session+0x495/0x550
+[   58.390673][ T7918]  ? handle_bug+0x99/0x120
+[   58.391627][ T7918]  ? exc_invalid_op+0x36/0x80
+[   58.392981][ T7918]  ? asm_exc_invalid_op+0x1a/0x20
+[   58.393703][ T7918]  ? cifs_put_tcp_session+0x494/0x550
+[   58.394816][ T7918]  ? cifs_put_tcp_session+0x495/0x550
+[   58.395410][ T7918]  __cifs_put_smb_ses+0x938/0x10e0
+[   58.396012][ T7918]  ? tconInfoFree+0x2c9/0x480
+[   58.396602][ T7918]  ? SMB2_tcon+0x1960/0x1960
+[   58.397163][ T7918]  cifs_put_tcon.part.0+0x3d8/0x6f0
+[   58.397797][ T7918]  cifs_mount_put_conns+0x97/0x370
+[   58.398394][ T7918]  cifs_mount+0x506/0x9a0
+[   58.398878][ T7918]  ? spin_bug+0x1d0/0x1d0
+[   58.399427][ T7918]  ? cifs_is_path_remote+0x880/0x880
+[   58.400108][ T7918]  ? smb3_update_mnt_flags+0x71d/0x9f0
+[   58.400774][ T7918]  ? cifs_setup_cifs_sb+0x466/0x900
+[   58.401257][ T7918]  cifs_smb3_do_mount+0x2a7/0x19a0
+[   58.401805][ T7918]  ? mutex_trylock+0x130/0x130
+[   58.402498][ T7918]  ? cifs_sb_deactive+0x80/0x80
+[   58.403330][ T7918]  ? cifs_wait_for_server_reconnect+0x570/0x570
+[   58.404139][ T7918]  smb3_get_tree+0x3ec/0x860
+[   58.404863][ T7918]  vfs_get_tree+0x91/0x380
+[   58.405483][ T7918]  ? mount_capable+0x84/0xf0
+[   58.406064][ T7918]  path_mount+0x675/0x1e40
+[   58.406725][ T7918]  ? putname+0x12a/0x170
+[   58.407338][ T7918]  ? kmem_cache_free+0xf8/0x350
+[   58.408037][ T7918]  ? finish_automount+0xa20/0xa20
+[   58.408754][ T7918]  ? putname+0x12a/0x170
+[   58.409317][ T7918]  __x64_sys_mount+0x283/0x300
+[   58.410073][ T7918]  ? copy_mnt_ns+0xb30/0xb30
+[   58.410677][ T7918]  ? syscall_enter_from_user_mode+0x7f/0x120
+[   58.411557][ T7918]  do_syscall_64+0x40/0x110
+[   58.412141][ T7918]  entry_SYSCALL_64_after_hwframe+0x63/0x6b
+[   58.412888][ T7918] RIP: 0033:0x7f333437262a
+[   58.413440][ T7918] Code: 48 8b 0d 69 18 0d 00 f7 d8 64 89 01 48 83 c8 ff c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 44 00 00 49 89 ca b8 a5 00 00 00 0f 05 <48> 3d 01 f0 ff ff 73 01 c3 48 8b 0d 36 18 0d 00 f7 d8 64 89 01 48
+[   58.415853][ T7918] RSP: 002b:00007ffc5bc97808 EFLAGS: 00000202 ORIG_RAX: 00000000000000a5
+[   58.416776][ T7918] RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 00007f333437262a
+[   58.417875][ T7918] RDX: 0000557b32977066 RSI: 0000557b32977040 RDI: 0000557b32977029
+[   58.418833][ T7918] RBP: 00007ffc5bc98840 R08: 00007ffc5bc97820 R09: 00007ffc5bc975a3
+[   58.419861][ T7918] R10: 0000000000000000 R11: 0000000000000202 R12: 0000557b329761e0
+[   58.420844][ T7918] R13: 0000000000000000 R14: 0000000000000000 R15: 0000000000000000
+[   58.421770][ T7918]  </TASK>
+[   58.422152][ T7918] Kernel panic - not syncing: kernel: panic_on_warn set ...
+[   58.423104][ T7918] CPU: 0 PID: 7918 Comm: a.out Not tainted 6.7.0-rc2-gbc9807868dfa-dirty #18
+[   58.424317][ T7918] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.15.0-1 04/01/2014
+[   58.425682][ T7918] Call Trace:
+[   58.426139][ T7918]  <TASK>
+[   58.426521][ T7918]  dump_stack_lvl+0xd9/0x150
+[   58.427099][ T7918]  panic+0x6b9/0x760
+[   58.427656][ T7918]  ? panic_smp_self_stop+0xa0/0xa0
+[   58.428380][ T7918]  ? cifs_put_tcp_session+0x495/0x550
+[   58.429104][ T7918]  check_panic_on_warn+0xb1/0xc0
+[   58.429730][ T7918]  __warn+0xf2/0x390
+[   58.430224][ T7918]  ? cifs_put_tcp_session+0x495/0x550
+[   58.430892][ T7918]  report_bug+0x2dd/0x500
+[   58.431427][ T7918]  ? cifs_put_tcp_session+0x495/0x550
+[   58.432060][ T7918]  handle_bug+0x99/0x120
+[   58.432564][ T7918]  exc_invalid_op+0x36/0x80
+[   58.433145][ T7918]  asm_exc_invalid_op+0x1a/0x20
+[   58.433758][ T7918] RIP: 0010:cifs_put_tcp_session+0x495/0x550
+[   58.434485][ T7918] Code: 00 00 00 4c 89 f7 e8 da 25 c2 01 e9 8e fc ff ff e8 80 f0 f0 fe 31 f6 48 89 df e8 76 fb ff ff e9 ff fd ff ff e8 6c f0 f0 fe 90 <0f> 0b 90 e9 db fb ff ff e8 0e 66 46 ff e9 a1 fb ff ff e8 24 66 46
+[   58.436881][ T7918] RSP: 0018:ffffc9000406fa40 EFLAGS: 00010246
+[   58.437645][ T7918] RAX: 0000000000010000 RBX: ffff8880239ce000 RCX: ffffc90002ab1000
+[   58.438594][ T7918] RDX: 0000000000010000 RSI: ffffffff82953fe4 RDI: 0000000000000005
+[   58.439585][ T7918] RBP: 00000000ffffffff R08: 0000000000000005 R09: 0000000000000000
+[   58.440525][ T7918] R10: 00000000ffffffff R11: 0000000000000000 R12: 0000000000000000
+[   58.441470][ T7918] R13: 0000000000000001 R14: 00000000fffffffe R15: 0000000000000001
+[   58.442557][ T7918]  ? cifs_put_tcp_session+0x494/0x550
+[   58.443295][ T7918]  __cifs_put_smb_ses+0x938/0x10e0
+[   58.443937][ T7918]  ? tconInfoFree+0x2c9/0x480
+[   58.444536][ T7918]  ? SMB2_tcon+0x1960/0x1960
+[   58.445116][ T7918]  cifs_put_tcon.part.0+0x3d8/0x6f0
+[   58.445754][ T7918]  cifs_mount_put_conns+0x97/0x370
+[   58.446405][ T7918]  cifs_mount+0x506/0x9a0
+[   58.446987][ T7918]  ? spin_bug+0x1d0/0x1d0
+[   58.447751][ T7918]  ? cifs_is_path_remote+0x880/0x880
+[   58.448476][ T7918]  ? smb3_update_mnt_flags+0x71d/0x9f0
+[   58.449147][ T7918]  ? cifs_setup_cifs_sb+0x466/0x900
+[   58.449794][ T7918]  cifs_smb3_do_mount+0x2a7/0x19a0
+[   58.450437][ T7918]  ? mutex_trylock+0x130/0x130
+[   58.451042][ T7918]  ? cifs_sb_deactive+0x80/0x80
+[   58.451645][ T7918]  ? cifs_wait_for_server_reconnect+0x570/0x570
+[   58.452432][ T7918]  smb3_get_tree+0x3ec/0x860
+[   58.453013][ T7918]  vfs_get_tree+0x91/0x380
+[   58.453582][ T7918]  ? mount_capable+0x84/0xf0
+[   58.454161][ T7918]  path_mount+0x675/0x1e40
+[   58.454755][ T7918]  ? putname+0x12a/0x170
+[   58.455269][ T7918]  ? kmem_cache_free+0xf8/0x350
+[   58.455877][ T7918]  ? finish_automount+0xa20/0xa20
+[   58.456538][ T7918]  ? putname+0x12a/0x170
+[   58.457045][ T7918]  __x64_sys_mount+0x283/0x300
+[   58.457644][ T7918]  ? copy_mnt_ns+0xb30/0xb30
+[   58.458221][ T7918]  ? syscall_enter_from_user_mode+0x7f/0x120
+[   58.458974][ T7918]  do_syscall_64+0x40/0x110
+[   58.459539][ T7918]  entry_SYSCALL_64_after_hwframe+0x63/0x6b
+[   58.460259][ T7918] RIP: 0033:0x7f333437262a
+[   58.460837][ T7918] Code: 48 8b 0d 69 18 0d 00 f7 d8 64 89 01 48 83 c8 ff c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 44 00 00 49 89 ca b8 a5 00 00 00 0f 05 <48> 3d 01 f0 ff ff 73 01 c3 48 8b 0d 36 18 0d 00 f7 d8 64 89 01 48
+[   58.463479][ T7918] RSP: 002b:00007ffc5bc97808 EFLAGS: 00000202 ORIG_RAX: 00000000000000a5
+[   58.464674][ T7918] RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 00007f333437262a
+[   58.465697][ T7918] RDX: 0000557b32977066 RSI: 0000557b32977040 RDI: 0000557b32977029
+[   58.466694][ T7918] RBP: 00007ffc5bc98840 R08: 00007ffc5bc97820 R09: 00007ffc5bc975a3
+[   58.467673][ T7918] R10: 0000000000000000 R11: 0000000000000202 R12: 0000557b329761e0
+[   58.468626][ T7918] R13: 0000000000000000 R14: 0000000000000000 R15: 0000000000000000
+[   58.469578][ T7918]  </TASK>
+[   58.470552][ T7918] Kernel Offset: disabled
+[   58.471283][ T7918] Rebooting in 86400 seconds..

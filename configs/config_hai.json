@@ -1,0 +1,8 @@
+{
+    "kernel_path": "/home/vmware/target/linux/arch/x86/boot/bzImage",
+    "vm_path" : "../vm",
+    "ram":"2G",
+    "instance_num": 1,
+    "max_loop" : 5000
+}
+
