@@ -5,6 +5,7 @@ proxy_for_mutator/a.out
 coverage_to_html/target
 coverage_to_html/tmp/*
 coverage_to_html/source_lines.txt
+create_report/report
 vm
 workdir
 vm.zip
