@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -15,6 +16,7 @@
 #include <sys/types.h> 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include "file_operation.h"
 #define KCOV_INIT_TRACE                     _IOR('c', 1, unsigned long)
 #define KCOV_ENABLE                 _IO('c', 100)
 #define KCOV_DISABLE                        _IO('c', 101)
@@ -189,8 +191,19 @@ int main(int argc, char **argv)
         if(ret==-1){
             exit(1);
         }
-        //more command for status? 
+        
         mount_cifs(atoi(argv[2]));
+        switch(buffer[0]){
+            case 1:
+                file_operation1("/root/smb_fuzzer/guest_user_agent/tmp");
+                break;
+            case 2:
+                file_operation2("/root/smb_fuzzer/guest_user_agent/tmp");
+                break;
+            case 3:
+                file_operation1("/root/smb_fuzzer/guest_user_agent/tmp");
+                break;
+        }
         end_coverage(fd,cover,master);
     }
        /* Free resources. */
