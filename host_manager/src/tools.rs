@@ -1,9 +1,10 @@
 use debug_print::debug_print;
 use debug_print::debug_println;
+use std::fs;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
-
+use std::path::Path;
 pub fn hexdump(label: &str, data: &[u8]) {
     debug_println!("{}", label);
     for (i, byte) in data.iter().enumerate() {
@@ -38,4 +39,16 @@ pub fn save_vec64_to_file(path: String, vector: Vec<u64>) {
     for address in vector {
         writeln!(file, "0x{:X}", address).unwrap();
     }
+}
+pub fn delete_file_if_exists(file_path: &str) -> std::io::Result<()> {
+    let path = Path::new(file_path);
+
+    if path.exists() {
+        fs::remove_file(path)?;
+        debug_println!("File '{}' has been deleted.", file_path);
+    } else {
+        debug_println!("File '{}' does not exist.", file_path);
+    }
+
+    Ok(())
 }

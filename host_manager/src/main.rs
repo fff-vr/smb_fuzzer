@@ -12,6 +12,7 @@ use lazy_static::lazy_static;
 use rand::Rng;
 use std::collections::HashMap;
 use std::env;
+use std::fmt::Alignment;
 use std::fs;
 use std::io::{self, ErrorKind};
 use std::net::Shutdown;
@@ -24,7 +25,7 @@ use std::time::{Duration, Instant};
 lazy_static! {
     static ref COVERAGE: Mutex<Vec<u64>> = Mutex::new(Vec::new());
     static ref FUZZ_COUNTER: Mutex<u64> = Mutex::new(0);
-    static ref INPUT_QUEUE : Mutex<InputQueue> = Mutex::new(mutator::input_queue::InputQueue::new());
+    static ref INPUT_QUEUE: Mutex<InputQueue> = Mutex::new(mutator::input_queue::InputQueue::new());
 }
 fn add_unique_elements_to_global(va: Vec<u64>) -> u32 {
     let mut global_vec = COVERAGE.lock().unwrap();
@@ -93,7 +94,9 @@ fn send_data(smb_socket: &mut TcpStream, data: Vec<u8>) -> io::Result<()> {
 }
 fn recv_data(smb_socket: &mut TcpStream) -> Vec<u8> {
     match network::read_from_socket(smb_socket) {
-        Ok(bytes_read) => bytes_read,
+        Ok(bytes_read) => {
+            bytes_read
+        },
         Err(_) => {
             vec![]
         }
@@ -106,6 +109,12 @@ fn accept_or_crash(listener: &TcpListener, wait_second: u64) -> Option<TcpStream
     loop {
         match listener.accept() {
             Ok((_socket, _addr)) => {
+                _socket
+                    .set_read_timeout(Some(Duration::new(5, 0)))
+                    .expect("fail to set timeout");
+                _socket
+                    .set_write_timeout(Some(Duration::new(5, 0)))
+                    .expect("fail to set timeout");
                 return Some(_socket);
             }
             Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
@@ -135,7 +144,6 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
 
     let mut agent_stream = accept_or_crash(&agent_listener, 240)
         .expect("fail to accept agent command channel. TODO restart qemu");
-    agent_stream.set_read_timeout(Some(Duration::new(1, 0)))?;
     loop {
         current_loop += 1;
         {
@@ -143,8 +151,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             *fuzz_counter += 1;
         }
 
-        //TODO move to config
-        if current_loop % 5000 == 0 {
+        if current_loop % config::get_max_loop() == 0 {
             if let Err(e) = child.kill().await {
                 eprintln!("fail to kill qemu. {}", e);
             }
@@ -153,18 +160,15 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             agent_stream = accept_or_crash(&agent_listener, 240)
                 .expect("fail to accept agent command channel. TODO restart qemu");
 
-            agent_stream.set_read_timeout(Some(Duration::new(1, 0)))?;
             current_loop = 0;
         }
 
         //TODO Recv one byte from agent. and check crash here
         send_command_to_agent(&mut agent_stream);
-
         if let Some(mut client_stream) = accept_or_crash(&proxy_listener, 30) {
             debug_println!("accpet client");
             let mut smb_server = TcpStream::connect("127.0.0.1:445").unwrap();
-            client_stream.set_read_timeout(Some(Duration::new(1, 0)))?;
-            smb_server.set_read_timeout(Some(Duration::new(1, 0)))?;
+            smb_server.set_read_timeout(Some(Duration::new(3, 0)))?;
             let mut packet_count = 0;
             let mut corpus = HashMap::new();
             loop {
@@ -186,7 +190,9 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
                             smb3_mutate::smb3_mutate_dumb(&mut respone_bytes, ratio as f32);
                         corpus.insert(packet_count, fragments);
                     }
-                    2 | 3 | 4 | 5 if INPUT_QUEUE.lock().unwrap().get_input(packet_count).len() != 0 => {
+                    2 | 3 | 4 | 5
+                        if INPUT_QUEUE.lock().unwrap().get_input(packet_count).len() != 0 =>
+                    {
                         let ratio: u32 = rand::thread_rng().gen_range(1..=20);
                         let fragments = INPUT_QUEUE.lock().unwrap().get_input(packet_count);
                         let fragments = smb3_mutate::smb3_mutate_coverage(
@@ -207,60 +213,58 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             debug_println!("recv coverage");
             if new_cov_count != 0 {
                 let mut i_queue = INPUT_QUEUE.lock().unwrap();
-                println!("get new cov {}, cov len ={}", new_cov_count,i_queue.len());
+                println!("get new cov {}, cov len ={}", new_cov_count, i_queue.len());
                 i_queue.insert_input(corpus);
             }
-            smb_server.shutdown(Shutdown::Both).unwrap();
-            client_stream.shutdown(Shutdown::Both).unwrap();
         } else {
+            //Mabye it is a fuzzer bug
+                            debug_println!("vm crashed!");
+                if let Err(e) = child.kill().await {
+                    eprintln!("fail to kill qemu. {}", e);
+                }
+                //wait for write test{}.txt
+                thread::sleep(Duration::from_secs(1));
 
-            if let Err(e) = child.kill().await {
-                eprintln!("fail to kill qemu. {}", e);
-            }
-            //wait for write test{}.txt
-            thread::sleep(Duration::from_secs(1));
+                let source_path = format!("../workdir/test{}.txt", id);
+                let mut target_path = Path::new("../crashlog/log.txt").to_path_buf();
 
-            let source_path = format!("../workdir/test{}.txt", id);
-            let mut target_path = Path::new("../workdir/save/log.txt").to_path_buf();
+                let mut counter = 1;
+                while target_path.exists() {
+                    target_path.set_file_name(format!("log{}.txt", counter));
+                    counter += 1;
+                }
 
-            let mut counter = 1;
-            while target_path.exists() {
-                target_path.set_file_name(format!("log{}.txt", counter));
-                counter += 1;
-            }
+                println!("save crash log => {}", target_path.display());
 
-            // 파일 이동
-            println!("save crash log => {}", target_path.display());
+                fs::rename(source_path, &target_path).unwrap();
 
-            fs::rename(source_path, &target_path).unwrap();
-
-            child = execute_linux_vm(id).await;
-            agent_stream = accept_or_crash(&agent_listener, 240)
-                .expect("fail to accept agent command channel. TODO restart qemu");
-            agent_stream.set_read_timeout(Some(Duration::new(1, 0)))?;
-            current_loop = 0;
-
-            //TODO analyze vm log
-            //TODO save packet
+                child = execute_linux_vm(id).await;
+                agent_stream = accept_or_crash(&agent_listener, 360)
+                    .expect("fail to accept agent command channel. TODO restart qemu");
+                current_loop = 0;
         }
     }
 }
 
 async fn fuzz() {
+    tools::delete_file_if_exists("../coverage.txt").expect("fail to remove coverage");
     let instance_num = config::get_instance_num();
     for i in 1..instance_num + 1 {
         tokio::spawn(fuzz_loop(i));
     }
+    let mut last_coverage = vec![];
     loop {
-        let mut  last_coverage=vec![];
         {
             let coverage_vec = COVERAGE.lock().unwrap();
-            let new_coverage: Vec<u64> = coverage_vec.clone().into_iter().filter(|&x| !last_coverage.contains(&x)).collect();
-            let mut fuzz_counter = FUZZ_COUNTER.lock().unwrap();
+            let new_coverage: Vec<u64> = coverage_vec
+                .clone()
+                .into_iter()
+                .filter(|&x| !last_coverage.contains(&x))
+                .collect();
+            let fuzz_counter = FUZZ_COUNTER.lock().unwrap();
             tools::save_vec64_to_file("../coverage.txt".to_string(), new_coverage.to_vec());
-            println!("fuzz loop = {}",fuzz_counter);
+            println!("fuzz loop = {}", fuzz_counter);
             last_coverage = coverage_vec.clone();
-        
         }
         thread::sleep(Duration::from_secs(60));
     }
@@ -297,11 +301,16 @@ fn test() {}
 #[tokio::main]
 async fn main() {
     let args: Vec<String> = env::args().collect();
-    config::initialize_global_config("../config.json".to_string());
+    if let Some(config_path) = args.get(2) {
+        config::initialize_global_config(config_path.to_string());
+    } else {
+        println!("config path");
+        std::process::exit(1);
+    };
     match args.get(1).map(String::as_str) {
         Some("fuzz") => fuzz().await,
         Some("reply") => {
-            if let Some(reply_arg) = args.get(2) {
+            if let Some(reply_arg) = args.get(3) {
                 reply(reply_arg.to_string());
             } else {
                 println!("No additional argument provided for reply");

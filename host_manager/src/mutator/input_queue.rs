@@ -2,12 +2,12 @@ use rand::Rng;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct Fragment {
     pub offset: usize,
     pub value: u8,
 }
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct Fragments {
     datas: Vec<Fragment>,
 }
@@ -37,7 +37,7 @@ impl InputQueue {
             queue: Default::default(),
         }
     }
-    pub fn len(&self)->usize{
+    pub fn len(&self) -> usize {
         self.queue.len()
     }
 
@@ -47,19 +47,24 @@ impl InputQueue {
             .iter()
             .filter(|&hashmap| hashmap.contains_key(&packet_count))
             .collect();
-        match valid_corquses.len(){
-            0=> Fragments::new(),
-            1=> {
+        match valid_corquses.len() {
+            0 => Fragments::new(),
+            1 => {
                 let corpus = valid_corquses[0];
-                corpus.get(&packet_count).expect("fail to get fragment").clone()
+                corpus
+                    .get(&packet_count)
+                    .expect("fail to get fragment")
+                    .clone()
             }
-            _=>{
-                let idx = rand::thread_rng().gen_range(0..valid_corquses.len()-1);
+            _ => {
+                let idx = rand::thread_rng().gen_range(0..valid_corquses.len() - 1);
                 let corpus = valid_corquses[idx];
-                corpus.get(&packet_count).expect("fail to get fragment").clone()
+                corpus
+                    .get(&packet_count)
+                    .expect("fail to get fragment")
+                    .clone()
             }
         }
-        
     }
     pub fn insert_input(&mut self, new_input: HashMap<u32, Fragments>) {
         self.queue.push_back(new_input);
