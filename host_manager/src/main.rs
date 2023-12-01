@@ -182,7 +182,9 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
                 debug_println!("success recv request_bytes = {}", request_bytes.len());
                 send_data(&mut smb_server, request_bytes).unwrap();
                 let mut respone_bytes = recv_data(&mut smb_server);
-
+                if packet_count ==3{
+                    println!("{} => {}",packet_count,respone_bytes.len());
+                }
                 match rand::thread_rng().gen_range(1..=40) {
                     1 => {
                         let ratio: u32 = rand::thread_rng().gen_range(1..=20);

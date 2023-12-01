@@ -1,6 +1,8 @@
 {
     "kernel_path": "/home/jjy/target/linux/arch/x86/boot/bzImage",
     "vm_path" : "../vm",
-    "instance_num": 32
+    "instance_num": 32,
+    "max_loop" : 5000,
+    "ram" : "2G"
 }
 
