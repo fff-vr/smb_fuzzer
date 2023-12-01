@@ -94,9 +94,7 @@ fn send_data(smb_socket: &mut TcpStream, data: Vec<u8>) -> io::Result<()> {
 }
 fn recv_data(smb_socket: &mut TcpStream) -> Vec<u8> {
     match network::read_from_socket(smb_socket) {
-        Ok(bytes_read) => {
-            bytes_read
-        },
+        Ok(bytes_read) => bytes_read,
         Err(_) => {
             vec![]
         }
@@ -182,8 +180,8 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
                 debug_println!("success recv request_bytes = {}", request_bytes.len());
                 send_data(&mut smb_server, request_bytes).unwrap();
                 let mut respone_bytes = recv_data(&mut smb_server);
-                if packet_count ==3{
-                    println!("{} => {}",packet_count,respone_bytes.len());
+                if packet_count == 3 {
+                    println!("{} => {}", packet_count, respone_bytes.len());
                 }
                 match rand::thread_rng().gen_range(1..=40) {
                     1 => {
@@ -201,6 +199,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
                             &mut respone_bytes,
                             ratio as f32,
                             fragments,
+                            packet_count,
                         );
                         corpus.insert(packet_count, fragments);
                     }
@@ -220,30 +219,30 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             }
         } else {
             //Mabye it is a fuzzer bug
-                            debug_println!("vm crashed!");
-                if let Err(e) = child.kill().await {
-                    eprintln!("fail to kill qemu. {}", e);
-                }
-                //wait for write test{}.txt
-                thread::sleep(Duration::from_secs(1));
+            debug_println!("vm crashed!");
+            if let Err(e) = child.kill().await {
+                eprintln!("fail to kill qemu. {}", e);
+            }
+            //wait for write test{}.txt
+            thread::sleep(Duration::from_secs(1));
 
-                let source_path = format!("../workdir/test{}.txt", id);
-                let mut target_path = Path::new("../crashlog/log.txt").to_path_buf();
+            let source_path = format!("../workdir/test{}.txt", id);
+            let mut target_path = Path::new("../crashlog/log.txt").to_path_buf();
 
-                let mut counter = 1;
-                while target_path.exists() {
-                    target_path.set_file_name(format!("log{}.txt", counter));
-                    counter += 1;
-                }
+            let mut counter = 1;
+            while target_path.exists() {
+                target_path.set_file_name(format!("log{}.txt", counter));
+                counter += 1;
+            }
 
-                println!("save crash log => {}", target_path.display());
+            println!("save crash log => {}", target_path.display());
 
-                fs::rename(source_path, &target_path).unwrap();
+            fs::rename(source_path, &target_path).unwrap();
 
-                child = execute_linux_vm(id).await;
-                agent_stream = accept_or_crash(&agent_listener, 360)
-                    .expect("fail to accept agent command channel. TODO restart qemu");
-                current_loop = 0;
+            child = execute_linux_vm(id).await;
+            agent_stream = accept_or_crash(&agent_listener, 360)
+                .expect("fail to accept agent command channel. TODO restart qemu");
+            current_loop = 0;
         }
     }
 }

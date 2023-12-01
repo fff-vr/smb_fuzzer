@@ -26,14 +26,15 @@ pub fn smb3_mutate_dumb(data: &mut Vec<u8>, mutation_rate: f32) -> input_queue::
     }
     fragments.clone()
 }
-fn apply_fragments(data: &mut Vec<u8>, fragments: &input_queue::Fragments) {
+fn apply_fragments(data: &mut Vec<u8>, fragments: &input_queue::Fragments, packet_count: u32) {
     for fragment in fragments.iter() {
         if fragment.offset >= data.len() {
             //TODO move to debug
             println!(
-                "[W] fragment.offset >= data.len() ... {} >= {}",
+                "[W] fragment.offset >= data.len() ... {} >= {} ... {}",
                 fragment.offset,
-                data.len()
+                data.len(),
+                packet_count
             );
             return;
         }
@@ -44,8 +45,9 @@ pub fn smb3_mutate_coverage(
     data: &mut Vec<u8>,
     mutation_rate: f32,
     fragments: input_queue::Fragments,
+    packet_count: u32,
 ) -> input_queue::Fragments {
-    apply_fragments(data, &fragments);
+    apply_fragments(data, &fragments, packet_count);
     smb3_mutate_dumb(data, mutation_rate);
     fragments
 }
