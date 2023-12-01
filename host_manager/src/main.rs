@@ -169,6 +169,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             smb_server.set_read_timeout(Some(Duration::new(3, 0)))?;
             let mut packet_count = 0;
             let mut corpus = HashMap::new();
+            let mut is_good_packet = true;
             loop {
                 //TODO check socket OK
                 debug_println!("start recv ori data");
@@ -180,9 +181,6 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
                 debug_println!("success recv request_bytes = {}", request_bytes.len());
                 send_data(&mut smb_server, request_bytes).unwrap();
                 let mut respone_bytes = recv_data(&mut smb_server);
-                if packet_count == 3 {
-                    println!("{} => {}", packet_count, respone_bytes.len());
-                }
                 match rand::thread_rng().gen_range(1..=40) {
                     1 => {
                         let ratio: u32 = rand::thread_rng().gen_range(1..=20);
@@ -195,7 +193,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
                     {
                         let ratio: u32 = rand::thread_rng().gen_range(1..=20);
                         let fragments = INPUT_QUEUE.lock().unwrap().get_input(packet_count);
-                        let fragments = smb3_mutate::smb3_mutate_coverage(
+                        let (fragments,is_good_packet) = smb3_mutate::smb3_mutate_coverage(
                             &mut respone_bytes,
                             ratio as f32,
                             fragments,
@@ -212,7 +210,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             debug_println!("waiting for coverage");
             let new_cov_count = recv_coverage_from_agent(&mut agent_stream);
             debug_println!("recv coverage");
-            if new_cov_count != 0 {
+            if new_cov_count != 0 && is_good_packet{
                 let mut i_queue = INPUT_QUEUE.lock().unwrap();
                 println!("get new cov {}, cov len ={}", new_cov_count, i_queue.len());
                 i_queue.insert_input(corpus);
