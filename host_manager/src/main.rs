@@ -54,10 +54,9 @@ fn convert_to_u64_vec(data: Vec<u8>) -> Vec<u64> {
         })
         .collect()
 }
-fn send_command_to_agent(agent_listener: &mut TcpStream) -> bool {
+fn send_command_to_agent(agent_listener: &mut TcpStream, command: u8) -> bool {
     debug_println!("[send_command_to_agent] start");
-    let start_execute = b"\x12";
-    match network::write_to_socket(agent_listener, start_execute.to_vec()) {
+    match network::write_to_socket(agent_listener, vec![command]) {
         Ok(_) => (),
         Err(e) => {
             panic!("Failed to send start execute: {}", e);
@@ -162,7 +161,8 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
         }
 
         //TODO Recv one byte from agent. and check crash here
-        send_command_to_agent(&mut agent_stream);
+        let command: u8 = rand::thread_rng().gen_range(0..2);
+        send_command_to_agent(&mut agent_stream, command);
         if let Some(mut client_stream) = accept_or_crash(&proxy_listener, 30) {
             debug_println!("accpet client");
             let mut smb_server = TcpStream::connect("127.0.0.1:445").unwrap();
@@ -180,9 +180,6 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
                 debug_println!("success recv request_bytes = {}", request_bytes.len());
                 send_data(&mut smb_server, request_bytes).unwrap();
                 let mut respone_bytes = recv_data(&mut smb_server);
-                if packet_count == 3 {
-                    println!("{} => {}", packet_count, respone_bytes.len());
-                }
                 match rand::thread_rng().gen_range(1..=40) {
                     1 => {
                         let ratio: u32 = rand::thread_rng().gen_range(1..=20);
@@ -287,7 +284,7 @@ fn reply(input_file: String) {
     println!("Server listening on port 8080");
 
     //TODO Recv one byte from agent. and check crash here
-    send_command_to_agent(&mut agent_stream);
+    send_command_to_agent(&mut agent_stream, 0);
 
     if let Some(mut stream) = accept_or_crash(&smb_listener, 60) {
         let _ = recv_data(&mut stream);
