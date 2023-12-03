@@ -26,7 +26,11 @@ pub fn smb3_mutate_dumb(data: &mut Vec<u8>, mutation_rate: f32) -> input_queue::
     }
     fragments.clone()
 }
-fn apply_fragments(data: &mut Vec<u8>, fragments: &input_queue::Fragments, packet_count: u32) -> bool{
+fn apply_fragments(
+    data: &mut Vec<u8>,
+    fragments: &input_queue::Fragments,
+    packet_count: u32,
+) -> bool {
     for fragment in fragments.iter() {
         if fragment.offset >= data.len() {
             return false;
@@ -40,9 +44,9 @@ pub fn smb3_mutate_coverage(
     mutation_rate: f32,
     fragments: input_queue::Fragments,
     packet_count: u32,
-) -> (input_queue::Fragments,bool) {
+) -> (input_queue::Fragments, bool) {
     let is_good = apply_fragments(data, &fragments, packet_count);
     smb3_mutate_dumb(data, mutation_rate);
-    (fragments,is_good)
+    (fragments, is_good)
 }
 //fix dynamic value : mabye mid,uid,pid ...

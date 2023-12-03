@@ -1,8 +1,9 @@
 use debug_print::debug_print;
 use debug_print::debug_println;
-use std::fs;
 use std::fs::File;
 use std::fs::OpenOptions;
+use std::fs::{self, DirEntry};
+use std::io;
 use std::io::{Read, Write};
 use std::path::Path;
 pub fn hexdump(label: &str, data: &[u8]) {
@@ -50,5 +51,17 @@ pub fn delete_file_if_exists(file_path: &str) -> std::io::Result<()> {
         debug_println!("File '{}' does not exist.", file_path);
     }
 
+    Ok(())
+}
+
+pub fn remove_files_in_folder<P: AsRef<Path>>(folder_path: P) -> io::Result<()> {
+    for entry in fs::read_dir(folder_path)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_file() {
+            // 디렉토리가 아닌 파일만 삭제
+            fs::remove_file(path)?;
+        }
+    }
     Ok(())
 }

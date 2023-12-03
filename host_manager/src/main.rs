@@ -18,10 +18,10 @@ use std::io::{self, ErrorKind};
 use std::net::Shutdown;
 use std::net::{TcpListener, TcpStream};
 use std::path::Path;
+use std::process::Command;
 use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
-
 lazy_static! {
     static ref COVERAGE: Mutex<Vec<u64>> = Mutex::new(Vec::new());
     static ref FUZZ_COUNTER: Mutex<u64> = Mutex::new(0);
@@ -163,6 +163,15 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
         //TODO Recv one byte from agent. and check crash here
         let command: u8 = rand::thread_rng().gen_range(1..4);
         send_command_to_agent(&mut agent_stream, command);
+        let userid = format!("/samba/users/user{}", id);
+        match Command::new("/home/jjy/reset".to_string())
+            .arg(userid.to_string())
+            .status()
+        {
+            Ok(status) => (),
+            Err(e) => eprintln!("Failed to execute : {}", e),
+        }
+
         if let Some(mut client_stream) = accept_or_crash(&proxy_listener, 60) {
             debug_println!("accpet client");
             let mut smb_server = TcpStream::connect("127.0.0.1:445").unwrap();
@@ -181,19 +190,22 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
                 debug_println!("success recv request_bytes = {}", request_bytes.len());
                 send_data(&mut smb_server, request_bytes).unwrap();
                 let mut respone_bytes = recv_data(&mut smb_server);
+
                 match rand::thread_rng().gen_range(1..=150) {
-                    1|2|3|4|5 => {
+                    //5
+                    1 | 2 | 3 | 4 | 5 => {
                         let ratio: u32 = rand::thread_rng().gen_range(1..=20);
                         let fragments =
                             smb3_mutate::smb3_mutate_dumb(&mut respone_bytes, ratio as f32);
                         corpus.insert(packet_count, fragments);
                     }
-                    51 | 52 | 53 | 54 | 55|56|57|58|59|60
+                    //10
+                    51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 59 | 60
                         if INPUT_QUEUE.lock().unwrap().get_input(packet_count).len() != 0 =>
                     {
                         let ratio: u32 = rand::thread_rng().gen_range(1..=20);
                         let fragments = INPUT_QUEUE.lock().unwrap().get_input(packet_count);
-                        let (fragments,is_good_packet) = smb3_mutate::smb3_mutate_coverage(
+                        let (fragments, is_good_packet) = smb3_mutate::smb3_mutate_coverage(
                             &mut respone_bytes,
                             ratio as f32,
                             fragments,
@@ -203,6 +215,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
                     }
                     _ => (), //no mutate
                 }
+
                 packet_count += 1;
                 debug_println!("send to mutated data");
                 send_data(&mut client_stream, respone_bytes).unwrap();
@@ -210,9 +223,14 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             debug_println!("waiting for coverage");
             let new_cov_count = recv_coverage_from_agent(&mut agent_stream);
             debug_println!("recv coverage");
-            if new_cov_count != 0 && is_good_packet{
+            if new_cov_count != 0 && is_good_packet {
                 let mut i_queue = INPUT_QUEUE.lock().unwrap();
-                println!("get new cov {}, cov len ={}, packet_count = {}", new_cov_count, i_queue.len(),packet_count);
+                println!(
+                    "get new cov {}, cov len ={}, packet_count = {}",
+                    new_cov_count,
+                    i_queue.len(),
+                    packet_count
+                );
                 i_queue.insert_input(corpus);
             }
         } else {
@@ -247,6 +265,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
 
 async fn fuzz() {
     tools::delete_file_if_exists("../coverage.txt").expect("fail to remove coverage");
+    tools::remove_files_in_folder("../workdir/").expect("fail to remove workdir");
     let instance_num = config::get_instance_num();
     for i in 1..instance_num + 1 {
         tokio::spawn(fuzz_loop(i));
