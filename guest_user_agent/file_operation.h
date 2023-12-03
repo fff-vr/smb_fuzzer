@@ -94,6 +94,13 @@ void file_operation2(const char *path) {
   sprintf(newfilePath, "%s/testfile_new", path);
   sprintf(linkPath, "%s/testfile_link", path);
   sprintf(symlinkPath, "%s/testfile_symlink", path);
+
+  printf("folderPath = %s\n", folderPath);
+  printf("filePath = %s\n", filePath);
+  printf("newfilePath = %s\n", newfilePath);
+  printf("linkPath = %s\n", linkPath);
+  printf("symlinkPath = %s\n", symlinkPath);
+
   // 새 디렉토리 생성
   if (mkdir(folderPath, 0755) == -1) {
     perror("mkdir");
