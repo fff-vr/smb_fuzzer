@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -15,6 +16,7 @@
 #include <sys/types.h> 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include "file_operation.h"
 #define KCOV_INIT_TRACE                     _IOR('c', 1, unsigned long)
 #define KCOV_ENABLE                 _IO('c', 100)
 #define KCOV_DISABLE                        _IO('c', 101)
@@ -80,7 +82,7 @@ int check_thread_exists(const char *thread_name) {
     return 0;
 }
 
-void mount_cifs(int proxy_port){
+int mount_cifs(int proxy_port){
 
     const char* source = "//10.0.2.10/data"; // SMB 공유 경로
 	const char* target = "/root/smb_fuzzer/guest_user_agent/tmp"; // 마운트 포인트
@@ -89,10 +91,9 @@ void mount_cifs(int proxy_port){
 	char data[0x1000]; 
     sprintf(data,"username=data,password=data,vers=3.0,sync,port=%d", proxy_port); // 사용자 이름과 비밀번호
     if (mount(source, target, filesystemtype, mountflags, data) != 0) {
-    	umount("/root/smb_fuzzer/guest_user_agent/tmp");
-        return ;
+        return -1;
     }
-    umount("/root/smb_fuzzer/guest_user_agent/tmp");
+    return 0;
 }
 void start_coverage(int fd,unsigned long * cover){
  /* Mmap buffer shared between kernel- and user-space. */
@@ -189,8 +190,21 @@ int main(int argc, char **argv)
         if(ret==-1){
             exit(1);
         }
-        //more command for status? 
-        mount_cifs(atoi(argv[2]));
+        
+        if(mount_cifs(atoi(argv[2]))==0){
+            switch(buffer[0]){
+                case 1:
+                    file_operation1("/root/smb_fuzzer/guest_user_agent/tmp");
+                    break;
+                case 2:
+                    file_operation2("/root/smb_fuzzer/guest_user_agent/tmp");
+                    break;
+                case 3:
+                    file_operation3("/root/smb_fuzzer/guest_user_agent/tmp");
+                    break;
+            }
+        }
+        umount("/root/smb_fuzzer/guest_user_agent/tmp");
         end_coverage(fd,cover,master);
     }
        /* Free resources. */
