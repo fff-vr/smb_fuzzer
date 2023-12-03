@@ -161,9 +161,9 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
         }
 
         //TODO Recv one byte from agent. and check crash here
-        let command: u8 = rand::thread_rng().gen_range(0..2);
+        let command: u8 = rand::thread_rng().gen_range(1..4);
         send_command_to_agent(&mut agent_stream, command);
-        if let Some(mut client_stream) = accept_or_crash(&proxy_listener, 30) {
+        if let Some(mut client_stream) = accept_or_crash(&proxy_listener, 60) {
             debug_println!("accpet client");
             let mut smb_server = TcpStream::connect("127.0.0.1:445").unwrap();
             smb_server.set_read_timeout(Some(Duration::new(3, 0)))?;
@@ -181,14 +181,14 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
                 debug_println!("success recv request_bytes = {}", request_bytes.len());
                 send_data(&mut smb_server, request_bytes).unwrap();
                 let mut respone_bytes = recv_data(&mut smb_server);
-                match rand::thread_rng().gen_range(1..=40) {
-                    1 => {
+                match rand::thread_rng().gen_range(1..=150) {
+                    1|2|3|4|5 => {
                         let ratio: u32 = rand::thread_rng().gen_range(1..=20);
                         let fragments =
                             smb3_mutate::smb3_mutate_dumb(&mut respone_bytes, ratio as f32);
                         corpus.insert(packet_count, fragments);
                     }
-                    2 | 3 | 4 | 5
+                    51 | 52 | 53 | 54 | 55|56|57|58|59|60
                         if INPUT_QUEUE.lock().unwrap().get_input(packet_count).len() != 0 =>
                     {
                         let ratio: u32 = rand::thread_rng().gen_range(1..=20);
@@ -212,7 +212,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             debug_println!("recv coverage");
             if new_cov_count != 0 && is_good_packet{
                 let mut i_queue = INPUT_QUEUE.lock().unwrap();
-                println!("get new cov {}, cov len ={}", new_cov_count, i_queue.len());
+                println!("get new cov {}, cov len ={}, packet_count = {}", new_cov_count, i_queue.len(),packet_count);
                 i_queue.insert_input(corpus);
             }
         } else {
