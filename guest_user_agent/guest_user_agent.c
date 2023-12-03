@@ -82,21 +82,6 @@ int check_thread_exists(const char *thread_name) {
   closedir(d);
   return 0;
 }
-
-<<<<<<< HEAD
-int mount_cifs(int proxy_port){
-
-    const char* source = "//10.0.2.10/data"; // SMB 공유 경로
-	const char* target = "/root/smb_fuzzer/guest_user_agent/tmp"; // 마운트 포인트
-	const char* filesystemtype = "cifs";
-	unsigned long mountflags = 0;
-	char data[0x1000]; 
-    sprintf(data,"username=data,password=data,vers=3.0,sync,port=%d,soft", proxy_port); // 사용자 이름과 비밀번호
-    if (mount(source, target, filesystemtype, mountflags, data) != 0) {
-        return -1;
-    }
-    return 0;
-=======
 int mount_cifs(int proxy_port, char *id, char *pass) {
 
   const char *target = "/root/smb_fuzzer/guest_user_agent/tmp"; // 마운트 포인트
@@ -107,11 +92,10 @@ int mount_cifs(int proxy_port, char *id, char *pass) {
   sprintf(mount_point,"//10.0.2.10/%s",id);
   sprintf(data, "username=%s,password=%s,vers=3.0,sync,port=%d", id, pass,
           proxy_port); // 사용자 이름과 비밀번호
-  if (mount(source, target, filesystemtype, mountflags, data) != 0) {
+  if (mount(mount_point, target, filesystemtype, mountflags, data) != 0) {
     return -1;
   }
   return 0;
->>>>>>> 74d40b7bf7892da16d061e5fe54cdd644beafe07
 }
 void start_coverage(int fd, unsigned long *cover) {
   /* Mmap buffer shared between kernel- and user-space. */
