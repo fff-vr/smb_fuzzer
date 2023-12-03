@@ -105,12 +105,7 @@ void file_operation2(const char *path) {
   if (mkdir(folderPath, 0755) == -1) {
     perror("mkdir");
   }
-
-  // 파일 생성
-  int fd = creat(filePath, 0644);
-  if (fd == -1) {
-    perror("creat");
-  }
+  int fd = open(filePath, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
 
   // 하드 링크 생성
   if (link(filePath, linkPath) == -1) {
