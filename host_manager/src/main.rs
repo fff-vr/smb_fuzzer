@@ -43,7 +43,6 @@ fn convert_to_u64_vec(data: Vec<u8>) -> Vec<u64> {
         .map(|chunk| {
             let mut val: u64 = 0;
             for &byte in chunk.iter().rev() {
-                // 리틀 엔디안으로 처리
                 val = val << 8 | byte as u64;
             }
             if 0xffffffff80000000 < val {
@@ -164,7 +163,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
         let command: u8 = rand::thread_rng().gen_range(1..4);
         send_command_to_agent(&mut agent_stream, command);
         let userid = format!("/samba/users/user{}", id);
-        match Command::new("/home/jjy/reset".to_string())
+        match Command::new("~/reset".to_string())
             .arg(userid.to_string())
             .status()
         {
@@ -191,7 +190,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
                 send_data(&mut smb_server, request_bytes).unwrap();
                 let mut respone_bytes = recv_data(&mut smb_server);
 
-                match rand::thread_rng().gen_range(1..=150) {
+                match rand::thread_rng().gen_range(1..=100) {
                     //5
                     1 | 2 | 3 | 4 | 5 => {
                         let ratio: u32 = rand::thread_rng().gen_range(1..=20);

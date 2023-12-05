@@ -38,12 +38,11 @@ fn lines_to_html()->io::Result<()>{
         match File::open(&file_path) {
             Ok(file) => {
 
-                let new_path = &file_path.replace("/home/jjy/target/", "./");
+                let new_path = &file_path.replace("~/target/", "./");
                 let new_path = format!("{}.html",new_path);
                 let path = Path::new(&new_path);
                 let html_file_path = path.clone();
                 if let Some(dir) = path.parent() {
-                    // 디렉토리가 존재하지 않으면 생성
                     fs::create_dir_all(dir)?;
                 }
                 println!("save at {}",html_file_path.display());
@@ -71,7 +70,6 @@ fn lines_to_html()->io::Result<()>{
     Ok(())
 
 }
-// HTML 특수 문자를 이스케이프하는 함수
 fn html_escape(input: &str) -> String {
     input.replace("&", "&amp;")
          .replace("<", "&lt;")
@@ -80,21 +78,18 @@ fn html_escape(input: &str) -> String {
          .replace("'", "&#39;")
 }
 fn coverage_to_lines(coverage_path : String) -> io::Result<()> {
-    let chunk_size = 3000; // 청크 크기를 정의합니다.
+    let chunk_size = 3000; 
     let addresses: Vec<_> = BufReader::new(File::open(coverage_path)?)
         .lines()
         .filter_map(Result::ok)
         .collect();
 
-    // 주소들을 청크로 나눕니다.
     let chunks: Vec<_> = addresses.chunks(chunk_size).enumerate().collect();
     let num = chunks.len();
-    // 각 청크를 병렬로 처리합니다.
     chunks.into_par_iter().for_each(|(index, chunk)| {
         process_chunk(chunk, index).unwrap();
     });
 
-    // 임시 파일들의 결과를 읽고 중복 제거 후 최종 파일에 저장
     remove_duplicates_and_save(num)?;
 
     Ok(())
@@ -103,7 +98,7 @@ fn coverage_to_lines(coverage_path : String) -> io::Result<()> {
 fn process_chunk(chunk: &[String], chunk_index: usize) -> io::Result<()> {
     let output = Command::new("addr2line")
         .arg("-e")
-        .arg("/home/jjy/target/linux/vmlinux") // 실행 파일 경로
+        .arg("~/target/linux/vmlinux")
         .args(chunk)
         .output()?;
 

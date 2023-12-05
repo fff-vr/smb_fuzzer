@@ -33,8 +33,8 @@ pub fn read_from_file(path: &str) -> std::io::Result<Vec<u8>> {
 pub fn save_vec64_to_file(path: String, vector: Vec<u64>) {
     let mut file = OpenOptions::new()
         .write(true)
-        .append(true) // append를 true로 설정
-        .create(true) // 파일이 존재하지 않을 경우 새로 생성
+        .append(true)
+        .create(true)
         .open(path)
         .unwrap();
     for address in vector {
@@ -59,7 +59,6 @@ pub fn remove_files_in_folder<P: AsRef<Path>>(folder_path: P) -> io::Result<()> 
         let entry = entry?;
         let path = entry.path();
         if path.is_file() {
-            // 디렉토리가 아닌 파일만 삭제
             fs::remove_file(path)?;
         }
     }

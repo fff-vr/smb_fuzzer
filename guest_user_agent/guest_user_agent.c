@@ -84,14 +84,14 @@ int check_thread_exists(const char *thread_name) {
 }
 int mount_cifs(int proxy_port, char *id, char *pass) {
 
-  const char *target = "/root/smb_fuzzer/guest_user_agent/tmp"; // 마운트 포인트
+  const char *target = "/root/smb_fuzzer/guest_user_agent/tmp"; 
   const char *filesystemtype = "cifs";
   unsigned long mountflags = 0;
   char data[0x100];
   char mount_point[0x100];
   sprintf(mount_point,"//10.0.2.10/%s",id);
   sprintf(data, "username=%s,password=%s,vers=3.0,sync,port=%d", id, pass,
-          proxy_port); // 사용자 이름과 비밀번호
+          proxy_port); 
   if (mount(mount_point, target, filesystemtype, mountflags, data) != 0) {
     return -1;
   }
@@ -141,14 +141,12 @@ int accept_fuzzer_master(int master_port) {
   int sock;
   struct sockaddr_in serv_addr;
 
-  // 소켓 생성
   sock = socket(PF_INET, SOCK_STREAM, 0);
   if (sock == -1) {
     perror("socket() error");
     exit(1);
   }
 
-  // 서버 주소 및 포트 설정
   memset(&serv_addr, 0, sizeof(serv_addr));
   serv_addr.sin_family = AF_INET;
   serv_addr.sin_addr.s_addr = inet_addr("10.0.2.10");
