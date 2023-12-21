@@ -175,7 +175,8 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
         if let Some(mut client_stream) = accept_or_crash(&proxy_listener, 60) {
             debug_println!("accpet client");
             let mut smb_server = TcpStream::connect("127.0.0.1:445").unwrap();
-            smb_server.set_read_timeout(Some(Duration::new(3, 0)))?;
+            smb_server.set_read_timeout(Some(Duration::new(1, 0)))?;
+            smb_server.set_read_timeout(Some(Duration::new(1,0)))?;
             let mut packet_count = 0;
             let mut corpus = HashMap::new();
             let mut is_good_packet = true;
@@ -205,12 +206,13 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
                     {
                         let ratio: u32 = rand::thread_rng().gen_range(1..=20);
                         let fragments = INPUT_QUEUE.lock().unwrap().get_input(packet_count);
-                        let (fragments, is_good_packet) = smb3_mutate::smb3_mutate_coverage(
+                        let (fragments, is_good_packet_) = smb3_mutate::smb3_mutate_coverage(
                             &mut respone_bytes,
                             ratio as f32,
                             fragments,
                             packet_count,
                         );
+                        is_good_packet = is_good_packet_;
                         corpus.insert(packet_count, fragments);
                     }
                     _ => (), //no mutate
