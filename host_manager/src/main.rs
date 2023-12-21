@@ -163,7 +163,8 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
         let command: u8 = rand::thread_rng().gen_range(1..4);
         send_command_to_agent(&mut agent_stream, command);
         let userid = format!("/samba/users/user{}", id);
-        match Command::new("~/reset".to_string())
+        match Command::new("sudo".to_string())
+            .arg("/home/jjy/reset".to_string())
             .arg(userid.to_string())
             .status()
         {

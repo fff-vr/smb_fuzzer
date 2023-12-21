@@ -24,8 +24,8 @@ pub async fn execute_linux_vm(i: u32) -> Child {
         .arg("-nographic")
         .arg("-serial")
         .arg(format!("file:../workdir/test{}.txt", i))
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        //.stdout(Stdio::null())
+        //.stderr(Stdio::null())
         .stdin(Stdio::null())
         .spawn()
         .expect("fail to spawn qemu");
