@@ -19,10 +19,10 @@ use std::net::Shutdown;
 use std::net::{TcpListener, TcpStream};
 use std::path::Path;
 use std::process::Command;
+use std::process::Stdio;
 use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
-use std::process::Stdio;
 lazy_static! {
     static ref COVERAGE: Mutex<Vec<u64>> = Mutex::new(Vec::new());
     static ref FUZZ_COUNTER: Mutex<u64> = Mutex::new(0);
@@ -99,6 +99,32 @@ fn recv_data(smb_socket: &mut TcpStream) -> Vec<u8> {
         }
     }
 }
+fn mutate_packet(request_bytes: &mut Vec<u8>, packet_count: u32) -> Option<input_queue::Fragments> {
+    match rand::thread_rng().gen_range(1..=150) {
+        0..=5 => {
+            let ratio: u32 = rand::thread_rng().gen_range(1..=20);
+            let fragments = smb3_mutate::smb3_mutate_dumb(request_bytes, ratio as f32);
+            Some(fragments)
+        }
+        51..=80 if INPUT_QUEUE.lock().unwrap().get_input(packet_count).len() != 0 => {
+            let ratio: u32 = rand::thread_rng().gen_range(1..=20);
+            let fragments = INPUT_QUEUE.lock().unwrap().get_input(packet_count);
+            let fragments = smb3_mutate::smb3_mutate_coverage(
+                request_bytes,
+                ratio as f32,
+                fragments,
+                packet_count,
+            );
+            Some(fragments)
+        }
+        51..=80 if INPUT_QUEUE.lock().unwrap().get_input(packet_count).len() == 0 => {
+            let ratio: u32 = rand::thread_rng().gen_range(1..=20);
+            let fragments = smb3_mutate::smb3_mutate_dumb(request_bytes, ratio as f32);
+            Some(fragments)
+        }
+        _ => None,
+    }
+}
 
 fn accept_or_crash(listener: &TcpListener, wait_second: u64) -> Option<TcpStream> {
     let timeout = Duration::from_secs(wait_second);
@@ -163,20 +189,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
         //TODO Recv one byte from agent. and check crash here
         let command: u8 = rand::thread_rng().gen_range(1..4);
         send_command_to_agent(&mut agent_stream, command);
-        let userid = format!("/samba/users/user{}", id);
-        /*
-        match Command::new("sudo".to_string())
-            .arg("/home/jjy/reset".to_string())
-            .arg(userid.to_string())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .stdin(Stdio::null())
-            .status()
-        {
-            Ok(status) => (),
-            Err(e) => eprintln!("Failed to execute : {}", e),
-        }
-        */
+
         tools::reset_folder(id).expect("fail to reset");
         if let Some(mut client_stream) = accept_or_crash(&proxy_listener, 60) {
             debug_println!("accpet client");
@@ -185,7 +198,6 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             client_stream.set_read_timeout(Some(Duration::from_nanos(100_000_000)))?;
             let mut packet_count = 0;
             let mut corpus = HashMap::new();
-            let mut is_good_packet = true;
             loop {
                 //TODO check socket OK
                 debug_println!("start recv ori data");
@@ -198,32 +210,9 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
                 send_data(&mut smb_server, request_bytes).unwrap();
                 let mut respone_bytes = recv_data(&mut smb_server);
 
-                match rand::thread_rng().gen_range(1..=100) {
-                    //5
-                    1 | 2 | 3 | 4 | 5 => {
-                        let ratio: u32 = rand::thread_rng().gen_range(1..=20);
-                        let fragments =
-                            smb3_mutate::smb3_mutate_dumb(&mut respone_bytes, ratio as f32);
-                        corpus.insert(packet_count, fragments);
-                    }
-                    //10
-                    51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 59 | 60
-                        if INPUT_QUEUE.lock().unwrap().get_input(packet_count).len() != 0 =>
-                    {
-                        let ratio: u32 = rand::thread_rng().gen_range(1..=20);
-                        let fragments = INPUT_QUEUE.lock().unwrap().get_input(packet_count);
-                        let (fragments, is_good_packet_) = smb3_mutate::smb3_mutate_coverage(
-                            &mut respone_bytes,
-                            ratio as f32,
-                            fragments,
-                            packet_count,
-                        );
-                        is_good_packet = is_good_packet_;
-                        corpus.insert(packet_count, fragments);
-                    }
-                    _ => (), //no mutate
+                if let Some(mutated_fragment) = mutate_packet(&mut respone_bytes, packet_count) {
+                    corpus.insert(packet_count, mutated_fragment);
                 }
-
                 packet_count += 1;
                 debug_println!("send to mutated data");
                 send_data(&mut client_stream, respone_bytes).unwrap();
@@ -231,7 +220,7 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             debug_println!("waiting for coverage");
             let new_cov_count = recv_coverage_from_agent(&mut agent_stream);
             debug_println!("recv coverage");
-            if new_cov_count != 0 && is_good_packet {
+            if new_cov_count != 0 {
                 let mut i_queue = INPUT_QUEUE.lock().unwrap();
                 println!(
                     "get new cov {}, cov len ={}, packet_count = {}",

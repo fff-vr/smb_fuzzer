@@ -26,6 +26,25 @@ impl Fragments {
     pub fn iter(&self) -> std::slice::Iter<'_, Fragment> {
         self.datas.iter()
     }
+    pub fn merge(&mut self, other: Fragments) {
+        let mut offset_map = HashMap::new();
+
+        // 현재 Fragments 인스턴스의 데이터를 HashMap에 추가
+        for fragment in &self.datas {
+            offset_map.insert(fragment.offset, fragment.value);
+        }
+
+        // 다른 Fragments 인스턴스의 데이터를 HashMap에 추가 (이 때 중복된 offset은 새로운 값으로 업데이트 됨)
+        for fragment in other.datas {
+            offset_map.insert(fragment.offset, fragment.value);
+        }
+
+        // HashMap을 기반으로 datas 벡터를 재구성
+        self.datas = offset_map
+            .into_iter()
+            .map(|(offset, value)| Fragment { offset, value })
+            .collect();
+    }
 }
 
 pub struct InputQueue {

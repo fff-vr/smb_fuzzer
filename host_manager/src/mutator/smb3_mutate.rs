@@ -42,11 +42,12 @@ fn apply_fragments(
 pub fn smb3_mutate_coverage(
     data: &mut Vec<u8>,
     mutation_rate: f32,
-    fragments: input_queue::Fragments,
+    mut fragments: input_queue::Fragments,
     packet_count: u32,
-) -> (input_queue::Fragments, bool) {
-    let is_good = apply_fragments(data, &fragments, packet_count);
-    smb3_mutate_dumb(data, mutation_rate);
-    (fragments, is_good)
+) -> input_queue::Fragments {
+    apply_fragments(data, &fragments, packet_count);
+    let new_fragments = smb3_mutate_dumb(data, mutation_rate);
+    fragments.merge(new_fragments);
+    fragments
 }
 //fix dynamic value : mabye mid,uid,pid ...
