@@ -22,6 +22,7 @@ use std::process::Command;
 use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
+use std::process::Stdio;
 lazy_static! {
     static ref COVERAGE: Mutex<Vec<u64>> = Mutex::new(Vec::new());
     static ref FUZZ_COUNTER: Mutex<u64> = Mutex::new(0);
@@ -163,20 +164,25 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
         let command: u8 = rand::thread_rng().gen_range(1..4);
         send_command_to_agent(&mut agent_stream, command);
         let userid = format!("/samba/users/user{}", id);
+        /*
         match Command::new("sudo".to_string())
             .arg("/home/jjy/reset".to_string())
             .arg(userid.to_string())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .stdin(Stdio::null())
             .status()
         {
             Ok(status) => (),
             Err(e) => eprintln!("Failed to execute : {}", e),
         }
-
+        */
+        tools::reset_folder(id).expect("fail to reset");
         if let Some(mut client_stream) = accept_or_crash(&proxy_listener, 60) {
             debug_println!("accpet client");
             let mut smb_server = TcpStream::connect("127.0.0.1:445").unwrap();
-            smb_server.set_read_timeout(Some(Duration::new(1, 0)))?;
-            smb_server.set_read_timeout(Some(Duration::new(1,0)))?;
+            smb_server.set_read_timeout(Some(Duration::from_nanos(100_000_000)))?;
+            client_stream.set_read_timeout(Some(Duration::from_nanos(100_000_000)))?;
             let mut packet_count = 0;
             let mut corpus = HashMap::new();
             let mut is_good_packet = true;

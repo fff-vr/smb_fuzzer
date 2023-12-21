@@ -6,6 +6,7 @@ use std::fs::{self, DirEntry};
 use std::io;
 use std::io::{Read, Write};
 use std::path::Path;
+use std::os::unix::fs::PermissionsExt;
 pub fn hexdump(label: &str, data: &[u8]) {
     debug_println!("{}", label);
     for (i, byte) in data.iter().enumerate() {
@@ -62,5 +63,24 @@ pub fn remove_files_in_folder<P: AsRef<Path>>(folder_path: P) -> io::Result<()> 
             fs::remove_file(path)?;
         }
     }
+    Ok(())
+}
+pub fn reset_folder(id : u32)->std::io::Result<()>{
+
+    // Construct the path using the user ID
+    let path = format!("/samba/users/user{}", id);
+
+    // Delete the folder if it exists
+    if fs::metadata(&path).is_ok() {
+        fs::remove_dir_all(&path)?;
+    }
+
+    // Create the folder 
+    fs::create_dir_all(&path)?;
+
+    // Change permissions to 777
+    let permissions = fs::Permissions::from_mode(0o777);
+    fs::set_permissions(&path, permissions)?;
+
     Ok(())
 }
