@@ -117,11 +117,13 @@ fn mutate_packet(request_bytes: &mut Vec<u8>, packet_count: u32) -> Option<input
             );
             Some(fragments)
         }
+        
         51..=80 if INPUT_QUEUE.lock().unwrap().get_input(packet_count).len() == 0 => {
             let ratio: u32 = rand::thread_rng().gen_range(1..=20);
             let fragments = smb3_mutate::smb3_mutate_dumb(request_bytes, ratio as f32);
             Some(fragments)
         }
+        
         _ => None,
     }
 }
@@ -174,6 +176,9 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
             *fuzz_counter += 1;
         }
 
+        if(current_loop ==3){
+            println!("dry run for {} is finished",id);
+        }
         if current_loop % config::get_max_loop() == 0 {
             if let Err(e) = child.kill().await {
                 eprintln!("fail to kill qemu. {}", e);
@@ -209,24 +214,30 @@ async fn fuzz_loop(id: u32) -> io::Result<()> {
                 debug_println!("success recv request_bytes = {}", request_bytes.len());
                 send_data(&mut smb_server, request_bytes).unwrap();
                 let mut respone_bytes = recv_data(&mut smb_server);
-
-                if let Some(mutated_fragment) = mutate_packet(&mut respone_bytes, packet_count) {
-                    corpus.insert(packet_count, mutated_fragment);
+                if respone_bytes.len()==0{
+                    debug_println!("server stream is closed");
+                    break;
+                }
+                if current_loop>3{
+                    if let Some(mutated_fragment) = mutate_packet(&mut respone_bytes, packet_count) {
+                        corpus.insert(packet_count, mutated_fragment);
+                    }
                 }
                 packet_count += 1;
                 debug_println!("send to mutated data");
                 send_data(&mut client_stream, respone_bytes).unwrap();
             }
+
             debug_println!("waiting for coverage");
             let new_cov_count = recv_coverage_from_agent(&mut agent_stream);
             debug_println!("recv coverage");
-            if new_cov_count != 0 {
+            if new_cov_count != 0 && corpus.len() > 0{
                 let mut i_queue = INPUT_QUEUE.lock().unwrap();
                 println!(
-                    "get new cov {}, cov len ={}, packet_count = {}",
+                    "get new cov {}, cov len ={}, packet_count = {},corpus = {}",
                     new_cov_count,
                     i_queue.len(),
-                    packet_count
+                    packet_count, corpus.len()
                 );
                 i_queue.insert_input(corpus);
             }
